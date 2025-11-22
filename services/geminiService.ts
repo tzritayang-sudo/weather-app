@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
 // 🔥 直接在這裡寫死鑰匙，這是最暴力的解法 🔥
-const HARDCODED_KEY = "AIzaSyAd06hqF60759LOwQMpffepbKDcCYcGUjI"; 
+const HARDCODED_KEY = "AIzaSyAdO6hqF6O759LOwQMpffepbKDcCYcGUjI"; 
 
 export const getGeminiSuggestion = async (
   apiKey: string, // 這裡雖然有傳參數，但我們下面直接無視它，用寫死的
