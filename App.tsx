@@ -20,9 +20,9 @@ const SelectorButton: React.FC<SelectorButtonProps> = ({
   <button
     onClick={onClick}
     className={`
-      flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 flex-1 min-w-[80px]
+      flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-300 flex-1 min-w-[70px]
       ${active 
-        ? 'bg-slate-800 text-white shadow-lg shadow-slate-200 scale-105' 
+        ? 'bg-slate-800 text-white shadow-md shadow-slate-200 scale-105' 
         : 'bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 border border-slate-100 shadow-sm'
       }
     `}
@@ -122,14 +122,14 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#FAFAFA] text-slate-800 font-sans pb-20">
       {/* Navbar-like Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2 text-slate-900">
-            <span className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-md">AI</span>
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
+          <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2 text-slate-900">
+            <span className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-md">AI</span>
             穿搭氣象台
           </h1>
           <div className="flex items-center gap-4">
-             <div className="text-xs font-medium text-slate-400 hidden md:flex items-center gap-2">
-               <span className={`w-2 h-2 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
+             <div className="text-[10px] font-medium text-slate-400 hidden md:flex items-center gap-2">
+               <span className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
                {loading ? '分析中...' : '就緒'}
              </div>
              
@@ -139,10 +139,10 @@ const App: React.FC = () => {
                      setTempKey(apiKey);
                      setShowSettings(true);
                  }}
-                 className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+                 className="p-1.5 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
                  title="設定 API Key"
                >
-                 <SettingsIcon className="w-6 h-6" />
+                 <SettingsIcon className="w-5 h-5" />
                </button>
              )}
           </div>
@@ -207,22 +207,22 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <div className="p-4 md:p-6 max-w-4xl mx-auto">
         
         {/* Control Panel */}
-        <div className="mb-10 bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
+        <div className="mb-8 bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3 opacity-60"></div>
 
-          <div className="p-6 md:p-8 flex flex-col gap-8">
+          <div className="p-5 md:p-8 flex flex-col gap-6">
             
             {/* 1. Location & Date/Time */}
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 {/* Location */}
                 <div className="md:col-span-5 space-y-2">
-                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">目的地</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">目的地</label>
                    <form onSubmit={handleLocationSubmit} className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <LocationIcon className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                     </div>
                     <input
@@ -230,7 +230,7 @@ const App: React.FC = () => {
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       placeholder="輸入地點..."
-                      className="block w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-lg font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-inner"
+                      className="block w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-inner"
                     />
                   </form>
                    <div className="flex flex-wrap gap-2 mt-2">
@@ -238,7 +238,7 @@ const App: React.FC = () => {
                       <button
                         key={loc}
                         onClick={() => setLocation(loc)}
-                        className={`text-xs px-3 py-1.5 rounded-lg transition-colors border ${location === loc ? 'bg-indigo-50 border-indigo-100 text-indigo-600 font-bold' : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'}`}
+                        className={`text-[11px] px-3 py-1 rounded-lg transition-colors border ${location === loc ? 'bg-indigo-50 border-indigo-100 text-indigo-600 font-bold' : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'}`}
                       >
                         {loc}
                       </button>
@@ -248,13 +248,13 @@ const App: React.FC = () => {
 
                 {/* Date Selector */}
                 <div className="md:col-span-3 space-y-2">
-                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">哪一天？</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">哪一天？</label>
                    <div className="flex flex-col gap-2">
                       {Object.values(TargetDay).map((day) => (
                         <button
                           key={day}
                           onClick={() => setTargetDay(day)}
-                          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all border text-left
+                          className={`px-3 py-2 rounded-xl text-sm font-medium transition-all border text-left
                             ${targetDay === day 
                               ? 'bg-slate-800 text-white border-slate-800 shadow-md' 
                               : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'}
@@ -268,8 +268,8 @@ const App: React.FC = () => {
 
                 {/* Time Selector */}
                 <div className="md:col-span-4 space-y-2">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">哪個時段？</label>
-                  <div className="bg-slate-50 p-2 rounded-2xl border border-slate-100 h-[132px] overflow-y-auto custom-scrollbar">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">哪個時段？</label>
+                  <div className="bg-slate-50 p-1.5 rounded-2xl border border-slate-100 h-[120px] overflow-y-auto custom-scrollbar">
                      <div className="grid grid-cols-1 gap-1">
                         {Object.values(TimeOfDay).map((t) => (
                           <button
@@ -290,19 +290,19 @@ const App: React.FC = () => {
             <hr className="border-slate-100" />
 
             {/* 2. Personalization Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-               <div className="space-y-6">
-                   <div className="space-y-3">
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">您的性別</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="space-y-4">
+                   <div className="space-y-2">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">您的性別</label>
                       <div className="flex gap-3">
                         <SelectorButton active={gender === Gender.Male} onClick={() => setGender(Gender.Male)} icon={UserIcon} label="男士" />
                         <SelectorButton active={gender === Gender.Female} onClick={() => setGender(Gender.Female)} icon={UserIcon} label="女士" />
                       </div>
                    </div>
 
-                   <div className="space-y-3">
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">穿搭場合</label>
-                      <div className="flex flex-wrap gap-3">
+                   <div className="space-y-2">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">穿搭場合</label>
+                      <div className="flex flex-wrap gap-2">
                         <SelectorButton active={style === Style.Casual} onClick={() => setStyle(Style.Casual)} icon={CoffeeIcon} label="休閒" />
                         <SelectorButton active={style === Style.Formal} onClick={() => setStyle(Style.Formal)} icon={BriefcaseIcon} label="正式" />
                         <SelectorButton active={style === Style.Sport} onClick={() => setStyle(Style.Sport)} icon={ActivityIcon} label="運動" />
@@ -311,15 +311,15 @@ const App: React.FC = () => {
                </div>
 
                {/* Color Season */}
-               <div className="space-y-4">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+               <div className="space-y-2">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
                     <span>色彩季型</span>
                   </label>
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <div className="bg-slate-50 p-1.5 rounded-xl border border-slate-100">
                     <select 
                       value={colorSeason}
                       onChange={(e) => setColorSeason(e.target.value as ColorSeason)}
-                      className="w-full bg-white border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-3 shadow-sm"
+                      className="w-full bg-white border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm"
                     >
                       <optgroup label="Winter (冬 - 冷冽/對比)">
                         <option value={ColorSeason.BrightWinter}>{ColorSeason.BrightWinter}</option>
@@ -349,10 +349,10 @@ const App: React.FC = () => {
             <button
               onClick={fetchData}
               disabled={loading}
-              className="w-full mt-2 py-4 bg-slate-900 hover:bg-black text-white rounded-2xl font-bold text-lg shadow-xl shadow-slate-900/20 transition-all transform active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+              className="w-full mt-2 py-3.5 bg-slate-900 hover:bg-black text-white rounded-xl font-bold text-base shadow-xl shadow-slate-900/20 transition-all transform active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
               <RefreshIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? '正在分析天氣與生成 3 套穿搭...' : '生成專屬穿搭'}
+              {loading ? '正在分析與生成...' : '生成專屬穿搭'}
             </button>
 
           </div>
@@ -377,13 +377,13 @@ const App: React.FC = () => {
           
           {loading && !data && (
              <div className="w-full space-y-6 animate-pulse">
-                <div className="h-48 bg-slate-200/50 rounded-3xl"></div>
+                <div className="h-40 bg-slate-200/50 rounded-3xl"></div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                   <div className="h-80 bg-slate-200/50 rounded-2xl"></div>
-                   <div className="h-80 bg-slate-200/50 rounded-2xl"></div>
-                   <div className="h-80 bg-slate-200/50 rounded-2xl"></div>
+                   <div className="h-64 bg-slate-200/50 rounded-2xl"></div>
+                   <div className="h-64 bg-slate-200/50 rounded-2xl"></div>
+                   <div className="h-64 bg-slate-200/50 rounded-2xl"></div>
                 </div>
-                <div className="h-64 bg-slate-200/50 rounded-2xl"></div>
+                <div className="h-56 bg-slate-200/50 rounded-2xl"></div>
              </div>
           )}
         </main>

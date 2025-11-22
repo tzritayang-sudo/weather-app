@@ -28,19 +28,20 @@ export const getGeminiSuggestion = async (
     你是一個頂尖的時尚造型師與氣象專家。
     
     【使用者資料】
-    1. 地點：${location} (請預測 ${location} **${fullTimeContext}** 的天氣)。
-    2. **目標時間：${fullTimeContext}** (使用者要穿出門的時間)。
+    1. 地點：${location}。
+    2. **目標穿搭時間：${fullTimeContext}** (使用者要穿出門的時間)。
     3. 性別：${genderStr}。
     4. 風格：${styleStr}。
     5. 色彩季型：${colorSeason}。
 
     【任務】
-    1. 分析天氣與體感溫度。
-    2. 設計一套「主要推薦穿搭」並填入 JSON 的 items 欄位。
-    3. **關鍵任務**：請在 JSON 的 "visualPrompts" 欄位中，產生 **3 組截然不同** 的英文影像提示詞 (Prompts)，這將用於生成三張不同風格的穿搭圖供使用者選擇：
+    1. 分析 ${location} 的天氣與體感溫度。
+    2. **務必提供從「今天」開始的未來三天天氣預報 (今天、明天、後天)**。
+    3. 針對「目標穿搭時間」設計一套「主要推薦穿搭」並填入 JSON 的 items 欄位。
+    4. **關鍵任務**：請在 JSON 的 "visualPrompts" 欄位中，產生 **3 組截然不同** 的英文影像提示詞 (Prompts)，這將用於生成三張不同風格的穿搭圖：
        - **Style 1 (Main)**: 與 items 欄位完全一致的標準搭配。
-       - **Style 2 (Fashion/Trendy)**: 同樣符合天氣，但更時尚、大膽、更有設計感的變體 (例如：不同的外套剪裁、更時髦的配件、多層次穿搭)。
-       - **Style 3 (Vibe/Relaxed)**: 另一種氛圍的搭配 (例如：若 Style 1 是褲裝，這裡可嘗試裙裝或寬褲，或是不同的材質運用)。
+       - **Style 2 (Trendy)**: 更時尚、大膽的變體。
+       - **Style 3 (Relaxed)**: 另一種氛圍的搭配 (例如裙裝變褲裝，或不同的層次)。
 
     【色彩季型邏輯】
     請嚴格根據 ${colorSeason} 挑選顏色。
@@ -50,14 +51,15 @@ export const getGeminiSuggestion = async (
       "location": "${location}",
       "weather": {
         "location": "${location}",
-        "temperature": "25°C",
-        "feelsLike": "27°C",
-        "humidity": "70%",
-        "rainProb": "30%",
-        "description": "天氣簡述",
+        "temperature": "目標時間氣溫 (例如 25°C)",
+        "feelsLike": "目標時間體感 (例如 27°C)",
+        "humidity": "濕度",
+        "rainProb": "降雨率",
+        "description": "針對目標時間的天氣簡述",
         "forecast": [
-          { "day": "${dayLabel}", "condition": "...", "high": "...", "low": "...", "rainProb": "..." },
-          ...
+          { "day": "今天", "condition": "...", "high": "...", "low": "...", "rainProb": "..." },
+          { "day": "明天", "condition": "...", "high": "...", "low": "...", "rainProb": "..." },
+          { "day": "後天", "condition": "...", "high": "...", "low": "...", "rainProb": "..." }
         ]
       },
       "outfit": {
@@ -68,9 +70,9 @@ export const getGeminiSuggestion = async (
         ],
         "tips": "造型建議",
         "visualPrompts": [
-           "Full body shot of ${genderStr} wearing [Describe Main Look details]...",
-           "Full body shot of ${genderStr} wearing [Describe Trendy Look details]...",
-           "Full body shot of ${genderStr} wearing [Describe Alternative Look details]..."
+           "Full body shot...",
+           "Full body shot...",
+           "Full body shot..."
         ]
       }
     }
