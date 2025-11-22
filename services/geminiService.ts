@@ -2,7 +2,6 @@ import { GoogleGenAI } from "@google/genai";
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
 export const getGeminiSuggestion = async (
-  apiKey: string,
   location: string, 
   gender: Gender, 
   style: Style, 
@@ -11,11 +10,8 @@ export const getGeminiSuggestion = async (
   timeOfDay: TimeOfDay
 ): Promise<WeatherOutfitResponse> => {
   
-  if (!apiKey) {
-    throw new Error("請先於設定中輸入您的 Google Gemini API Key");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  // Use process.env.API_KEY directly as per strict coding guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const genderStr = gender === Gender.Male ? '男士' : gender === Gender.Female ? '女士' : '中性';
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式上班/商務' : '運動健身';

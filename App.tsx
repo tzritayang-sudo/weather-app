@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { getGeminiSuggestion } from './services/geminiService';
 import ResultDisplay from './components/ResultDisplay';
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from './types';
-import { RefreshIcon, UserIcon, BriefcaseIcon, CoffeeIcon, ActivityIcon, SearchIcon, ClockIcon, SettingsIcon, KeyIcon, LocationIcon } from './components/Icons';
+import { RefreshIcon, UserIcon, BriefcaseIcon, CoffeeIcon, ActivityIcon, SearchIcon, ClockIcon, LocationIcon } from './components/Icons';
 
 interface SelectorButtonProps {
   active: boolean;
@@ -38,12 +38,6 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<WeatherOutfitResponse | null>(null);
-  
-  // API Key State
-  const [apiKey, setApiKey] = useState<string>('');
-  const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [tempKey, setTempKey] = useState<string>('');
-  const [isUsingEnvKey, setIsUsingEnvKey] = useState<boolean>(false);
 
   // Personalization State
   const [location, setLocation] = useState<string>("雙北通勤");
@@ -55,63 +49,22 @@ const App: React.FC = () => {
   const [targetDay, setTargetDay] = useState<TargetDay>(TargetDay.Today);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(TimeOfDay.Morning);
 
-  // Load API Key on Mount
-  useEffect(() => {
-    const envKey = process.env.API_KEY;
-    
-    if (envKey) {
-      setApiKey(envKey);
-      setIsUsingEnvKey(true);
-    } else {
-      const storedKey = localStorage.getItem('gemini_api_key');
-      if (storedKey) {
-        setApiKey(storedKey);
-      }
-      setIsUsingEnvKey(false);
-    }
-  }, []);
-
-  const saveApiKey = () => {
-    if (tempKey.trim()) {
-      localStorage.setItem('gemini_api_key', tempKey.trim());
-      setApiKey(tempKey.trim());
-      setShowSettings(false);
-      setError(null); 
-    }
-  };
-
-  const clearApiKey = () => {
-    localStorage.removeItem('gemini_api_key');
-    setApiKey('');
-    setTempKey('');
-  };
-
   const fetchData = useCallback(async () => {
     if (!location.trim()) return;
     
-    if (!apiKey) {
-      setShowSettings(true);
-      setError("請先設定 API Key 才能開始使用");
-      return;
-    }
-
     setLoading(true);
     setError(null);
     try {
-      const result = await getGeminiSuggestion(apiKey, location, gender, style, colorSeason, targetDay, timeOfDay);
+      const result = await getGeminiSuggestion(location, gender, style, colorSeason, targetDay, timeOfDay);
       setData(result);
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : '發生未知錯誤';
       setError(errorMsg);
       console.error(err);
-      
-      if (!isUsingEnvKey && (errorMsg.includes('Key') || errorMsg.includes('API') || errorMsg.includes('permission') || errorMsg.includes('400') || errorMsg.includes('403'))) {
-          setShowSettings(true);
-      }
     } finally {
       setLoading(false);
     }
-  }, [apiKey, location, gender, style, colorSeason, targetDay, timeOfDay, isUsingEnvKey]);
+  }, [location, gender, style, colorSeason, targetDay, timeOfDay]);
 
   const handleLocationSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,80 +85,9 @@ const App: React.FC = () => {
                <span className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
                {loading ? '分析中...' : '就緒'}
              </div>
-             
-             {!isUsingEnvKey && (
-               <button 
-                 onClick={() => {
-                     setTempKey(apiKey);
-                     setShowSettings(true);
-                 }}
-                 className="p-1.5 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
-                 title="設定 API Key"
-               >
-                 <SettingsIcon className="w-5 h-5" />
-               </button>
-             )}
           </div>
         </div>
       </header>
-
-      {/* Settings Modal */}
-      {showSettings && !isUsingEnvKey && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 m-4">
-            <div className="flex items-center gap-3 mb-4 text-slate-800">
-              <div className="bg-indigo-100 p-2 rounded-full">
-                 <KeyIcon className="w-6 h-6 text-indigo-600" />
-              </div>
-              <h2 className="text-xl font-bold">設定 API Key</h2>
-            </div>
-            
-            <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-              為了確保您的使用權限與免費額度，請輸入您個人的 Google Gemini API Key。
-              <br />
-              <a 
-                href="https://aistudio.google.com/app/apikey" 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-indigo-600 font-bold hover:underline"
-              >
-                取得免費 API Key &rarr;
-              </a>
-            </p>
-
-            <input 
-              type="password" 
-              value={tempKey}
-              onChange={(e) => setTempKey(e.target.value)}
-              placeholder="輸入您的 API Key (AIza...)"
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm"
-            />
-
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setShowSettings(false)}
-                className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-medium text-sm"
-              >
-                取消
-              </button>
-              {apiKey && (
-                 <button 
-                 onClick={clearApiKey}
-                 className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg font-medium text-sm"
-               >
-                 清除 Key
-               </button>
-              )}
-              <button 
-                onClick={saveApiKey}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm shadow-md"
-              >
-                儲存並開始
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
         
@@ -363,11 +245,6 @@ const App: React.FC = () => {
             <div className="p-6 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-center shadow-sm">
               <p className="font-bold mb-1">請注意</p>
               <p className="text-sm opacity-80">{error}</p>
-              {error.includes("Key") && !isUsingEnvKey && (
-                 <button onClick={() => setShowSettings(true)} className="mt-2 text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-bold hover:bg-red-200">
-                   設定 Key
-                 </button>
-              )}
             </div>
           )}
 
