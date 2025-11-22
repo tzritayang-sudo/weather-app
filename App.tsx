@@ -58,7 +58,14 @@ const App: React.FC = () => {
       const result = await getGeminiSuggestion(location, gender, style, colorSeason, targetDay, timeOfDay);
       setData(result);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : '發生未知錯誤';
+      let errorMsg = '發生未知錯誤';
+      if (err instanceof Error) {
+        errorMsg = err.message;
+        // Help user identify missing API key issues
+        if (errorMsg.includes("API Key") || errorMsg.includes("403")) {
+           errorMsg = "API Key 設定錯誤或遺失。請檢查 Vercel 環境變數 (API_KEY)。";
+        }
+      }
       setError(errorMsg);
       console.error(err);
     } finally {
@@ -81,7 +88,7 @@ const App: React.FC = () => {
             穿搭氣象台
           </h1>
           <div className="flex items-center gap-4">
-             <div className="text-[10px] font-medium text-slate-400 hidden md:flex items-center gap-2">
+             <div className="text-xs font-medium text-slate-400 hidden md:flex items-center gap-2">
                <span className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
                {loading ? '分析中...' : '就緒'}
              </div>
@@ -99,10 +106,10 @@ const App: React.FC = () => {
             
             {/* 1. Location & Date/Time */}
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
                 {/* Location */}
                 <div className="md:col-span-5 space-y-2">
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">目的地</label>
+                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">目的地</label>
                    <form onSubmit={handleLocationSubmit} className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <LocationIcon className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -120,7 +127,7 @@ const App: React.FC = () => {
                       <button
                         key={loc}
                         onClick={() => setLocation(loc)}
-                        className={`text-[11px] px-3 py-1 rounded-lg transition-colors border ${location === loc ? 'bg-indigo-50 border-indigo-100 text-indigo-600 font-bold' : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'}`}
+                        className={`text-xs px-3 py-1.5 rounded-lg transition-colors border ${location === loc ? 'bg-indigo-50 border-indigo-100 text-indigo-600 font-bold' : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'}`}
                       >
                         {loc}
                       </button>
@@ -130,13 +137,13 @@ const App: React.FC = () => {
 
                 {/* Date Selector */}
                 <div className="md:col-span-3 space-y-2">
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">哪一天？</label>
+                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">哪一天？</label>
                    <div className="flex flex-col gap-2">
                       {Object.values(TargetDay).map((day) => (
                         <button
                           key={day}
                           onClick={() => setTargetDay(day)}
-                          className={`px-3 py-2 rounded-xl text-sm font-medium transition-all border text-left
+                          className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all border text-left
                             ${targetDay === day 
                               ? 'bg-slate-800 text-white border-slate-800 shadow-md' 
                               : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'}
@@ -150,17 +157,17 @@ const App: React.FC = () => {
 
                 {/* Time Selector */}
                 <div className="md:col-span-4 space-y-2">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">哪個時段？</label>
-                  <div className="bg-slate-50 p-1.5 rounded-2xl border border-slate-100 h-[120px] overflow-y-auto custom-scrollbar">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">哪個時段？</label>
+                  <div className="bg-slate-50 p-1.5 rounded-2xl border border-slate-100 h-[140px] overflow-y-auto custom-scrollbar">
                      <div className="grid grid-cols-1 gap-1">
                         {Object.values(TimeOfDay).map((t) => (
                           <button
                             key={t}
                             onClick={() => setTimeOfDay(t)}
-                            className={`text-xs py-2 rounded-lg transition-all text-left px-3 flex items-center justify-between ${timeOfDay === t ? 'bg-white text-indigo-600 font-bold shadow-sm border border-slate-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                            className={`text-xs py-2.5 rounded-lg transition-all text-left px-3 flex items-center justify-between ${timeOfDay === t ? 'bg-white text-indigo-600 font-bold shadow-sm border border-slate-100' : 'text-slate-500 hover:bg-slate-100'}`}
                           >
                             <span>{t.split('(')[1].replace(')','')}</span>
-                            {timeOfDay === t && <ClockIcon className="w-3 h-3" />}
+                            {timeOfDay === t && <ClockIcon className="w-3.5 h-3.5" />}
                           </button>
                         ))}
                      </div>
@@ -175,7 +182,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-4">
                    <div className="space-y-2">
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">您的性別</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">您的性別</label>
                       <div className="flex gap-3">
                         <SelectorButton active={gender === Gender.Male} onClick={() => setGender(Gender.Male)} icon={UserIcon} label="男士" />
                         <SelectorButton active={gender === Gender.Female} onClick={() => setGender(Gender.Female)} icon={UserIcon} label="女士" />
@@ -183,7 +190,7 @@ const App: React.FC = () => {
                    </div>
 
                    <div className="space-y-2">
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">穿搭場合</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">穿搭場合</label>
                       <div className="flex flex-wrap gap-2">
                         <SelectorButton active={style === Style.Casual} onClick={() => setStyle(Style.Casual)} icon={CoffeeIcon} label="休閒" />
                         <SelectorButton active={style === Style.Formal} onClick={() => setStyle(Style.Formal)} icon={BriefcaseIcon} label="正式" />
@@ -194,7 +201,7 @@ const App: React.FC = () => {
 
                {/* Color Season */}
                <div className="space-y-2">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
                     <span>色彩季型</span>
                   </label>
                   <div className="bg-slate-50 p-1.5 rounded-xl border border-slate-100">

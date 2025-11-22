@@ -10,13 +10,18 @@ export const getGeminiSuggestion = async (
   timeOfDay: TimeOfDay
 ): Promise<WeatherOutfitResponse> => {
   
-  // Use process.env.API_KEY directly as per strict coding guidelines
+  // Security Check: Ensure API Key is loaded from environment variables
+  if (!process.env.API_KEY) {
+    throw new Error("API Key is missing. Please check your environment variables (API_KEY).");
+  }
+
+  // Use process.env.API_KEY exclusively as per guidelines
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const genderStr = gender === Gender.Male ? '男士' : gender === Gender.Female ? '女士' : '中性';
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式上班/商務' : '運動健身';
   
-  // Resolve Target Day String
+  // Resolve Target Day String for context, but forecast is always Today+3
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
   const fullTimeContext = `${dayLabel} ${timeOfDay}`;
 
@@ -25,19 +30,19 @@ export const getGeminiSuggestion = async (
     
     【使用者資料】
     1. 地點：${location}。
-    2. **目標穿搭時間：${fullTimeContext}** (使用者要穿出門的時間)。
+    2. **目標穿搭時間：${fullTimeContext}** (這是使用者要穿出門的時間，請針對此時間點做穿搭建議)。
     3. 性別：${genderStr}。
     4. 風格：${styleStr}。
     5. 色彩季型：${colorSeason}。
 
     【任務】
-    1. 分析 ${location} 的天氣與體感溫度。
-    2. **務必提供從「今天」開始的未來三天天氣預報 (今天、明天、後天)**。
+    1. 分析 ${location} 的天氣。
+    2. **天氣預報要求 (重要)**：無論使用者的目標時間為何，請務必提供 **「今天」、「明天」、「後天」** 這連續三天的天氣簡報。
     3. 針對「目標穿搭時間」設計一套「主要推薦穿搭」並填入 JSON 的 items 欄位。
-    4. **關鍵任務**：請在 JSON 的 "visualPrompts" 欄位中，產生 **3 組截然不同** 的英文影像提示詞 (Prompts)，這將用於生成三張不同風格的穿搭圖：
-       - **Style 1 (Main)**: 與 items 欄位完全一致的標準搭配。
-       - **Style 2 (Trendy)**: 更時尚、大膽的變體。
-       - **Style 3 (Relaxed)**: 另一種氛圍的搭配 (例如裙裝變褲裝，或不同的層次)。
+    4. **視覺風格 (Visual Prompts)**：請在 "visualPrompts" 欄位產生 3 組英文提示詞，分別對應三種不同氛圍，用於生成圖片：
+       - **Look 1 (Standard)**: 忠實呈現 items 欄位的標準穿搭。
+       - **Look 2 (Trendy/Chic)**: 使用相同單品，但採用更時尚、街拍感的穿法或剪裁 (High-fashion editorial)。
+       - **Look 3 (Relaxed/Vibe)**: 較為放鬆、強調氛圍感的呈現方式 (Relaxed mood)。
 
     【色彩季型邏輯】
     請嚴格根據 ${colorSeason} 挑選顏色。
@@ -66,9 +71,9 @@ export const getGeminiSuggestion = async (
         ],
         "tips": "造型建議",
         "visualPrompts": [
-           "Full body shot...",
-           "Full body shot...",
-           "Full body shot..."
+           "Full body shot, standard look...",
+           "Full body shot, trendy editorial look...",
+           "Full body shot, relaxed vibe..."
         ]
       }
     }
@@ -98,15 +103,15 @@ export const getGeminiSuggestion = async (
       if (!prompts || prompts.length < 3) {
          const itemsDesc = data.outfit.items.map(i => `${i.color} ${i.item}`).join(', ');
          prompts = [
-            `Full body fashion photo, ${genderStr}, wearing ${itemsDesc}, ${styleStr} style, street photography.`,
-            `Full body fashion photo, ${genderStr}, wearing ${itemsDesc}, but make it more high-fashion editorial, dynamic pose.`,
-            `Full body fashion photo, ${genderStr}, wearing ${itemsDesc}, minimalist and chic vibe.`
+            `Full body fashion photo, ${genderStr}, wearing ${itemsDesc}, ${styleStr} style, standard catalog pose, clear lighting.`,
+            `Full body fashion photo, ${genderStr}, wearing ${itemsDesc}, high-fashion street style, dynamic movement, editorial lighting.`,
+            `Full body fashion photo, ${genderStr}, wearing ${itemsDesc}, soft artistic vibe, relaxed posture, atmospheric lighting.`
          ];
       }
 
       // Append common high-quality keywords to all prompts
       const enhancedPrompts = prompts.map(p => 
-        `${p}. Location: ${location} street. Lighting: ${timeOfDay === TimeOfDay.Night ? 'Cinematic night city lights' : 'Natural soft daylight'}. 8k resolution, photorealistic, fashion magazine style, masterpiece.`
+        `${p}. Location: ${location} outdoor/city. Lighting: ${timeOfDay === TimeOfDay.Night ? 'Night city bokeh' : 'Natural daylight'}. 8k resolution, photorealistic, masterpiece, detailed textures.`
       );
 
       // Parallel generation

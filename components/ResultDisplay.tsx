@@ -67,22 +67,22 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
     const rainProb = parseInt(rainProbStr.replace('%', '')) || 0;
 
     if (desc.includes('雨') || desc.includes('rain') || rainProb > 40) {
-      return <CloudRainIcon className="w-24 h-24 text-blue-500 drop-shadow-2xl" />;
+      return <CloudRainIcon className="w-20 h-20 md:w-24 md:h-24 text-blue-500 drop-shadow-2xl" />;
     }
-    return <SunIcon className="w-24 h-24 text-amber-400 drop-shadow-2xl" />;
+    return <SunIcon className="w-20 h-20 md:w-24 md:h-24 text-amber-400 drop-shadow-2xl" />;
   }, [data.weather]);
 
   const getStyleLabel = (index: number) => {
     switch(index) {
-      case 0: return "✨ 標準推薦 (Main)";
-      case 1: return "🔥 時尚變體 (Trendy)";
-      case 2: return "🌿 氛圍感 (Vibe)";
+      case 0: return "✨ 標準搭配 (Main)";
+      case 1: return "🔥 時尚風格 (Trendy)";
+      case 2: return "🌿 氛圍感 (Relaxed)";
       default: return `Style ${index + 1}`;
     }
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
+    <div className="space-y-5 animate-fade-in pb-12">
       
       {/* 1. Weather Widget with Feels Like & Forecast */}
       <div className="bg-white rounded-[2rem] shadow-xl shadow-blue-100/50 overflow-hidden relative border border-slate-50">
@@ -92,27 +92,29 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
         <div className="relative z-10 p-6 flex flex-col md:flex-row items-center md:items-stretch justify-between gap-6">
           
           {/* Current Weather */}
-          <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left space-y-1">
-            <span className="text-slate-400 text-[10px] font-bold tracking-widest uppercase bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">Selected Time</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-800 tracking-tight">
+          <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left space-y-2">
+            <span className="text-slate-400 text-xs font-bold tracking-widest uppercase bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
+              Selected Time
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight leading-tight">
               {data.location}
             </h2>
             <p className="text-base text-slate-500 font-medium">{data.weather.description}</p>
             
-            <div className="mt-4 flex items-center gap-6">
+            <div className="mt-2 flex items-center gap-6">
                <div className="text-center">
-                 <div className="text-2xl font-bold text-slate-800">{data.weather.temperature.split(' ')[0]}</div>
-                 <div className="text-[10px] text-slate-400 font-medium">氣溫</div>
+                 <div className="text-3xl font-bold text-slate-800">{data.weather.temperature.split(' ')[0]}</div>
+                 <div className="text-xs text-slate-400 font-medium">氣溫</div>
                </div>
-               <div className="w-px h-8 bg-slate-200"></div>
+               <div className="w-px h-10 bg-slate-200"></div>
                <div className="text-center">
-                 <div className="text-2xl font-bold text-indigo-600">{data.weather.feelsLike || data.weather.temperature.split(' ')[0]}</div>
-                 <div className="text-[10px] text-indigo-400 font-medium">體感</div>
+                 <div className="text-3xl font-bold text-indigo-600">{data.weather.feelsLike || data.weather.temperature.split(' ')[0]}</div>
+                 <div className="text-xs text-indigo-400 font-medium">體感</div>
                </div>
-               <div className="w-px h-8 bg-slate-200"></div>
+               <div className="w-px h-10 bg-slate-200"></div>
                <div className="text-center">
-                 <div className="text-2xl font-bold text-slate-800">{data.weather.rainProb}</div>
-                 <div className="text-[10px] text-slate-400 font-medium">降雨率</div>
+                 <div className="text-3xl font-bold text-slate-800">{data.weather.rainProb}</div>
+                 <div className="text-xs text-slate-400 font-medium">降雨率</div>
                </div>
             </div>
           </div>
@@ -127,11 +129,11 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
            <div className="relative z-10 border-t border-slate-100 bg-slate-50/50 p-4">
               <div className="grid grid-cols-3 gap-2 divide-x divide-slate-200/50">
                  {data.weather.forecast.map((day, idx) => (
-                   <div key={idx} className="text-center px-2">
-                      <div className="text-xs font-bold text-slate-400 mb-1">{day.day}</div>
-                      <div className="text-sm font-semibold text-slate-700">{day.condition}</div>
-                      <div className="text-xs text-slate-500 mt-1">{day.low} - {day.high}</div>
-                      <div className="text-[10px] text-blue-500 mt-0.5">☔ {day.rainProb}</div>
+                   <div key={idx} className="text-center px-1">
+                      <div className="text-xs font-bold text-slate-500 mb-1">{day.day}</div>
+                      <div className="text-sm font-semibold text-slate-700 leading-tight">{day.condition}</div>
+                      <div className="text-xs text-slate-400 mt-1">{day.low} - {day.high}</div>
+                      <div className="text-xs text-blue-500 mt-0.5 font-medium">☔ {day.rainProb}</div>
                    </div>
                  ))}
               </div>
@@ -143,7 +145,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
       {data.generatedImages && data.generatedImages.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
-             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">AI Style Gallery</h3>
+             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Style Inspiration</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {data.generatedImages.map((img, index) => (
@@ -154,8 +156,8 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
                      alt={`AI Generated Outfit ${index + 1}`} 
                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
                    />
-                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3 pt-8">
-                      <div className="text-white text-[10px] font-bold shadow-sm uppercase tracking-wide">
+                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10">
+                      <div className="text-white text-xs font-bold shadow-sm tracking-wide">
                         {getStyleLabel(index)}
                       </div>
                    </div>
@@ -180,7 +182,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
                     className="w-10 h-10 rounded-full shadow-md border-2 border-white transition-transform transform hover:scale-110 hover:z-10 cursor-pointer"
                     style={{ backgroundColor: color }}
                   ></div>
-                  <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-[10px] bg-slate-800 text-white px-1.5 py-0.5 rounded transition-opacity whitespace-nowrap z-20">
+                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs bg-slate-800 text-white px-2 py-1 rounded transition-opacity whitespace-nowrap z-20 pointer-events-none">
                     {color}
                   </span>
                 </div>
@@ -203,19 +205,19 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
               className="group bg-white rounded-2xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-50 hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)] transition-all duration-300 flex flex-col items-center justify-between text-center h-full relative overflow-hidden"
             >
               <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-slate-200 to-transparent opacity-50"></div>
-              <div className="w-16 h-16 mb-3 relative">
+              <div className="w-14 h-14 mb-3 relative">
                  <div className="absolute inset-0 bg-slate-50 rounded-full transform scale-0 group-hover:scale-100 transition-transform duration-300 ease-out"></div>
-                 <div className="relative z-10 w-full h-full p-3 transform group-hover:-translate-y-1 transition-transform duration-300">
+                 <div className="relative z-10 w-full h-full p-2.5 transform group-hover:-translate-y-1 transition-transform duration-300">
                    {renderIcon(item.icon)}
                  </div>
               </div>
               <div className="w-full space-y-1">
                 <div>
-                   <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200 rounded-full">
+                   <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] md:text-xs font-bold border border-slate-200 rounded-full">
                      {item.color}
                    </span>
                 </div>
-                <p className="font-bold text-slate-800 text-base leading-tight">{item.item}</p>
+                <p className="font-bold text-slate-800 text-sm md:text-base leading-tight">{item.item}</p>
                 <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 px-1">
                   {item.reason}
                 </p>
