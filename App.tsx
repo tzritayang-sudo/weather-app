@@ -1,8 +1,8 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { getGeminiSuggestion } from './services/geminiService';
 import ResultDisplay from './components/ResultDisplay';
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from './types';
-import { RefreshIcon, UserIcon, BriefcaseIcon, CoffeeIcon, ActivityIcon, SearchIcon, ClockIcon, LocationIcon } from './components/Icons';
+import { RefreshIcon, UserIcon, BriefcaseIcon, CoffeeIcon, ActivityIcon, SearchIcon, ClockIcon, SettingsIcon, KeyIcon, LocationIcon } from './components/Icons';
 
 interface SelectorButtonProps {
   active: boolean;
@@ -34,10 +34,19 @@ const SelectorButton: React.FC<SelectorButtonProps> = ({
 
 const PRESET_LOCATIONS = ["泰山", "汐止", "雙北通勤"];
 
+// --- 這裡是你的金鑰，我已經幫你填進去了 ---
+const HARDCODED_KEY = "AIzaSyAd06hqF60759LOwQMpffepbKDcCYcGUjI";
+
 const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<WeatherOutfitResponse | null>(null);
+  
+  // API Key State - 直接使用寫死的金鑰
+  const [apiKey, setApiKey] = useState<string>(HARDCODED_KEY);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [tempKey, setTempKey] = useState<string>('');
+  const [isUsingEnvKey, setIsUsingEnvKey] = useState<boolean>(true); // 強制設為 true，隱藏設定按鈕
 
   // Personalization State
   const [location, setLocation] = useState<string>("雙北通勤");
@@ -49,29 +58,59 @@ const App: React.FC = () => {
   const [targetDay, setTargetDay] = useState<TargetDay>(TargetDay.Today);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(TimeOfDay.Morning);
 
+  // Load API Key on Mount
+  useEffect(() => {
+    // 強制設定金鑰
+    setApiKey(HARDCODED_KEY);
+    setIsUsingEnvKey(true);
+  }, []);
+
+  const saveApiKey = () => {
+    if (tempKey.trim()) {
+      localStorage.setItem('gemini_api_key', tempKey.trim());
+      setApiKey(tempKey.trim());
+      setShowSettings(false);
+      setError(null); 
+    }
+  };
+
+  const clearApiKey = () => {
+    localStorage.removeItem('gemini_api_key');
+    setApiKey('');
+    setTempKey('');
+  };
+
   const fetchData = useCallback(async () => {
     if (!location.trim()) return;
     
+    // 再次確保金鑰存在
+    const currentKey = apiKey || HARDCODED_KEY;
+    
+    if (!currentKey) {
+      setShowSettings(true);
+      setError("請先設定 API Key 才能開始使用");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
-      const result = await getGeminiSuggestion(location, gender, style, colorSeason, targetDay, timeOfDay);
+      const result = await getGeminiSuggestion(currentKey, location, gender, style, colorSeason, targetDay, timeOfDay);
       setData(result);
     } catch (err) {
-      let errorMsg = '發生未知錯誤';
-      if (err instanceof Error) {
-        errorMsg = err.message;
-        // Help user identify missing API key issues
-        if (errorMsg.includes("API Key") || errorMsg.includes("403")) {
-           errorMsg = "API Key 設定錯誤或遺失。請檢查 Vercel 環境變數 (API_KEY)。";
-        }
-      }
+      const errorMsg = err instanceof Error ? err.message : '發生未知錯誤';
       setError(errorMsg);
       console.error(err);
+      
+      // 如果真的發生 Key 錯誤，才顯示設定視窗
+      if (errorMsg.includes('Key') || errorMsg.includes('API') || errorMsg.includes('permission') || errorMsg.includes('403')) {
+          // 這裡我們不強制跳出，因為已經寫死了，可能是配額滿了
+          console.log("API Error detected");
+      }
     } finally {
       setLoading(false);
     }
-  }, [location, gender, style, colorSeason, targetDay, timeOfDay]);
+  }, [apiKey, location, gender, style, colorSeason, targetDay, timeOfDay]);
 
   const handleLocationSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,13 +127,85 @@ const App: React.FC = () => {
             穿搭氣象台
           </h1>
           <div className="flex items-center gap-4">
-             <div className="text-xs font-medium text-slate-400 hidden md:flex items-center gap-2">
+             <div className="text-[10px] font-medium text-slate-400 hidden md:flex items-center gap-2">
                <span className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
                {loading ? '分析中...' : '就緒'}
              </div>
+             
+             {/* 隱藏設定按鈕，除非真的需要 */}
+             {!isUsingEnvKey && (
+               <button 
+                 onClick={() => {
+                     setTempKey(apiKey);
+                     setShowSettings(true);
+                 }}
+                 className="p-1.5 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
+                 title="設定 API Key"
+               >
+                 <SettingsIcon className="w-5 h-5" />
+               </button>
+             )}
           </div>
         </div>
       </header>
+
+      {/* Settings Modal - 只在特殊情況顯示 */}
+      {showSettings && !isUsingEnvKey && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 m-4">
+            <div className="flex items-center gap-3 mb-4 text-slate-800">
+              <div className="bg-indigo-100 p-2 rounded-full">
+                 <KeyIcon className="w-6 h-6 text-indigo-600" />
+              </div>
+              <h2 className="text-xl font-bold">設定 API Key</h2>
+            </div>
+            
+            <p className="text-sm text-slate-500 mb-4 leading-relaxed">
+              為了確保您的使用權限與免費額度，請輸入您個人的 Google Gemini API Key。
+              <br />
+              <a 
+                href="https://aistudio.google.com/app/apikey" 
+                target="_blank" 
+                rel="noreferrer"
+                className="text-indigo-600 font-bold hover:underline"
+              >
+                取得免費 API Key &rarr;
+              </a>
+            </p>
+
+            <input 
+              type="password" 
+              value={tempKey}
+              onChange={(e) => setTempKey(e.target.value)}
+              placeholder="輸入您的 API Key (AIza...)"
+              className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm"
+            />
+
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setShowSettings(false)}
+                className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-medium text-sm"
+              >
+                取消
+              </button>
+              {apiKey && (
+                 <button 
+                 onClick={clearApiKey}
+                 className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg font-medium text-sm"
+               >
+                 清除 Key
+               </button>
+              )}
+              <button 
+                onClick={saveApiKey}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm shadow-md"
+              >
+                儲存並開始
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
         
@@ -106,10 +217,10 @@ const App: React.FC = () => {
             
             {/* 1. Location & Date/Time */}
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 {/* Location */}
                 <div className="md:col-span-5 space-y-2">
-                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">目的地</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">目的地</label>
                    <form onSubmit={handleLocationSubmit} className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <LocationIcon className="h-5 w-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -127,7 +238,7 @@ const App: React.FC = () => {
                       <button
                         key={loc}
                         onClick={() => setLocation(loc)}
-                        className={`text-xs px-3 py-1.5 rounded-lg transition-colors border ${location === loc ? 'bg-indigo-50 border-indigo-100 text-indigo-600 font-bold' : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'}`}
+                        className={`text-[11px] px-3 py-1 rounded-lg transition-colors border ${location === loc ? 'bg-indigo-50 border-indigo-100 text-indigo-600 font-bold' : 'bg-white border-slate-100 text-slate-500 hover:bg-slate-50'}`}
                       >
                         {loc}
                       </button>
@@ -137,37 +248,37 @@ const App: React.FC = () => {
 
                 {/* Date Selector */}
                 <div className="md:col-span-3 space-y-2">
-                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">哪一天？</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">哪一天？</label>
                    <div className="flex flex-col gap-2">
-                      {Object.values(TargetDay).map((day) => (
-                        <button
-                          key={day}
-                          onClick={() => setTargetDay(day)}
-                          className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all border text-left
-                            ${targetDay === day 
-                              ? 'bg-slate-800 text-white border-slate-800 shadow-md' 
-                              : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'}
-                          `}
-                        >
-                          {day.split('(')[1].replace(')','')} <span className="text-[10px] opacity-70 ml-1">{day.split(' ')[0]}</span>
-                        </button>
-                      ))}
+                     {Object.values(TargetDay).map((day) => (
+                       <button
+                         key={day}
+                         onClick={() => setTargetDay(day)}
+                         className={`px-3 py-2 rounded-xl text-sm font-medium transition-all border text-left
+                           ${targetDay === day 
+                             ? 'bg-slate-800 text-white border-slate-800 shadow-md' 
+                             : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50'}
+                         `}
+                       >
+                         {day.split('(')[1].replace(')','')} <span className="text-[10px] opacity-70 ml-1">{day.split(' ')[0]}</span>
+                       </button>
+                     ))}
                    </div>
                 </div>
 
                 {/* Time Selector */}
                 <div className="md:col-span-4 space-y-2">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">哪個時段？</label>
-                  <div className="bg-slate-50 p-1.5 rounded-2xl border border-slate-100 h-[140px] overflow-y-auto custom-scrollbar">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">哪個時段？</label>
+                  <div className="bg-slate-50 p-1.5 rounded-2xl border border-slate-100 h-[120px] overflow-y-auto custom-scrollbar">
                      <div className="grid grid-cols-1 gap-1">
                         {Object.values(TimeOfDay).map((t) => (
                           <button
                             key={t}
                             onClick={() => setTimeOfDay(t)}
-                            className={`text-xs py-2.5 rounded-lg transition-all text-left px-3 flex items-center justify-between ${timeOfDay === t ? 'bg-white text-indigo-600 font-bold shadow-sm border border-slate-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                            className={`text-xs py-2 rounded-lg transition-all text-left px-3 flex items-center justify-between ${timeOfDay === t ? 'bg-white text-indigo-600 font-bold shadow-sm border border-slate-100' : 'text-slate-500 hover:bg-slate-100'}`}
                           >
                             <span>{t.split('(')[1].replace(')','')}</span>
-                            {timeOfDay === t && <ClockIcon className="w-3.5 h-3.5" />}
+                            {timeOfDay === t && <ClockIcon className="w-3 h-3" />}
                           </button>
                         ))}
                      </div>
@@ -182,7 +293,7 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-4">
                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">您的性別</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">您的性別</label>
                       <div className="flex gap-3">
                         <SelectorButton active={gender === Gender.Male} onClick={() => setGender(Gender.Male)} icon={UserIcon} label="男士" />
                         <SelectorButton active={gender === Gender.Female} onClick={() => setGender(Gender.Female)} icon={UserIcon} label="女士" />
@@ -190,7 +301,7 @@ const App: React.FC = () => {
                    </div>
 
                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">穿搭場合</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">穿搭場合</label>
                       <div className="flex flex-wrap gap-2">
                         <SelectorButton active={style === Style.Casual} onClick={() => setStyle(Style.Casual)} icon={CoffeeIcon} label="休閒" />
                         <SelectorButton active={style === Style.Formal} onClick={() => setStyle(Style.Formal)} icon={BriefcaseIcon} label="正式" />
@@ -201,7 +312,7 @@ const App: React.FC = () => {
 
                {/* Color Season */}
                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
                     <span>色彩季型</span>
                   </label>
                   <div className="bg-slate-50 p-1.5 rounded-xl border border-slate-100">
@@ -252,6 +363,11 @@ const App: React.FC = () => {
             <div className="p-6 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-center shadow-sm">
               <p className="font-bold mb-1">請注意</p>
               <p className="text-sm opacity-80">{error}</p>
+              {error.includes("Key") && !isUsingEnvKey && (
+                 <button onClick={() => setShowSettings(true)} className="mt-2 text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-bold hover:bg-red-200">
+                   設定 Key
+                 </button>
+              )}
             </div>
           )}
 
