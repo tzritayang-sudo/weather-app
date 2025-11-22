@@ -35,7 +35,7 @@ const SelectorButton: React.FC<SelectorButtonProps> = ({
 const PRESET_LOCATIONS = ["泰山", "汐止", "雙北通勤"];
 
 // --- 這裡是你的金鑰，我已經幫你填進去了 ---
-const HARDCODED_KEY = "AIzaSyAd06hqF60759LOwQMpffepbKDcCYcGUjI";
+const HARDCODED_KEY = "AIzaSyAdO6hqF6O759LOwQMpffepbKDcCYcGUjI";
 
 const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
