@@ -1,6 +1,7 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-const MODEL_NAME = "gemini-2.5-flash"; 
+// 🔥 先試試看標準的 1.5-flash (如果不行的話，請手動改成 "gemini-2.5-flash" 或 "gemini-pro")
+const MODEL_NAME = "gemini-1.5-flash"; 
 
 const getApiKey = (keyName: string) => {
   const envKey = import.meta.env[keyName];
@@ -55,42 +56,32 @@ async function fetchRealWeather(location: string): Promise<string> {
         }
         
         const res = await fetch(`https://wttr.in/${encodeURIComponent(searchLoc)}?format=j1`);
-        
-        if (!res.ok) {
-            console.warn("Weather API returned status:", res.status);
-            return ""; // 如果 API 掛了，優雅降級，讓 AI 自己猜
-        }
+        if (!res.ok) return ""; // API 失敗時優雅降級
         
         const data = await res.json();
-        
-        // 🔥 防呆保護：確保所有屬性都存在再讀取
         const current = data.current_condition?.[0];
         if (!current) return "";
 
         const temp = current.temp_C || "25";
         const feelsLike = current.FeelsLikeC || temp;
-        const humidity = current.humidity || "70";
-        const weatherDesc = current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value || "多雲";
-        
-        // 嘗試取得區域名稱，若失敗則回傳原搜尋地點
+        const humidity = current.humidity || "70"; // 抓取濕度
+        const weatherDesc = current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value || "";
         const areaName = data.nearest_area?.[0]?.areaName?.[0]?.value || location;
-        
-        // 嘗試取得降雨機率
         const rainProb = data.weather?.[0]?.hourly?.[0]?.chanceofrain || "0";
 
         return `
-        【真實天氣】
+        【真實天氣數據】
         - 地點: ${areaName}
         - 氣溫: ${temp}°C
         - 體感: ${feelsLike}°C
         - 濕度: ${humidity}%
         - 天氣: ${weatherDesc}
         - 降雨機率: ${rainProb}%
-        (請務必根據濕度調整建議，並將數值填入 weather.humidity)
+        (請務必將濕度填入 JSON 的 weather.humidity 欄位，並根據濕度調整穿搭建議)
         `;
     } catch (e) { 
-        console.error("Weather fetch error:", e);
-        return ""; // 發生任何錯誤都回傳空字串，不要讓整個流程掛掉
+        console.warn("Weather API Error", e);
+        return ""; 
     }
 }
 
@@ -112,6 +103,7 @@ export const getGeminiSuggestion = async (
 
   const realWeather = await fetchRealWeather(location);
 
+  // 🔥 Prompt 包含濕度邏輯與圖示選擇
   const prompt = `
   角色：專業氣象色彩顧問。
   使用者：${genderStr}, 風格：${styleStr}。
@@ -124,7 +116,7 @@ export const getGeminiSuggestion = async (
   3. 乾燥：注意保濕，可選親膚棉質。
 
   【圖示選擇 (icon)】
-  請從清單選擇最合適的 icon key：
+  請為每個 items[].icon 選擇最合適的 key：
   "t-shirt", "shirt", "sweater", "hoodie", "jacket", "coat", "pants", "shorts", "skirt", "dress", 
   "sneakers", "boots", "formal-shoes", "sandals", "bag", "umbrella", "hat", "scarf", "glasses", "watch"
 
@@ -132,11 +124,11 @@ export const getGeminiSuggestion = async (
   {
     "location": "...",
     "weather": {
-      "temperature": "...", "feelsLike": "...", "humidity": "85%", "rainProb": "...", "description": "...", "advice": "..."
+      "temperature": "...", "feelsLike": "...", "humidity": "...", "rainProb": "...", "description": "...", "advice": "..."
     },
     "outfit": {
       "items": [
-         { "item": "單品", "color": "顏色", "reason": "...", "detail": "...", "icon": "t-shirt" }
+         { "item": "單品", "color": "顏色", "reason": "...", "detail": "...", "icon": "..." }
       ],
       "tips": "...",
       "colorPalette": ["色1", "色2"],
@@ -159,10 +151,13 @@ export const getGeminiSuggestion = async (
         generationConfig: { response_mime_type: "application/json" }
       })
     });
-    if (!response.ok) throw new Error("API Fail");
+
+    if (!response.ok) throw new Error(`API Fail: ${response.status} ${response.statusText}`);
+
     const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     parsedData = JSON.parse(repairJson(rawText));
+    
     if (!parsedData.weather.advice) parsedData.weather.advice = `天氣${parsedData.weather.description}。`;
   } catch (e) { throw e; }
 
@@ -172,6 +167,7 @@ export const getGeminiSuggestion = async (
           fetchPexelsImages(parsedData.outfit.visualPrompts[1])
       ]);
       parsedData.generatedImages = [...images1.slice(0, 2), ...images2.slice(0, 1)];
+      
       if (parsedData.generatedImages.length === 0) {
            const backupColor = parsedData.outfit.items[0].color; 
            parsedData.generatedImages = await fetchPexelsImages(`${backupColor} fashion`);
