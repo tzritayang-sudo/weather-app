@@ -10,61 +10,69 @@ interface ResultDisplayProps {
   data: WeatherOutfitResponse;
 }
 
-// 🔥 終極色碼轉換 (支援中文 + 英文 + 深色模式優化)
+// 🔥 超級色碼轉換 (支援中文模糊搜尋)
 const getColorHex = (colorName: string) => {
   const lower = colorName.toLowerCase();
   
-  // 🟦 藍色系
-  if (lower.includes('electric blue') || lower.includes('電光藍') || lower.includes('藍')) return '#00FFFF'; 
-  if (lower.includes('royal blue') || lower.includes('寶石藍') || lower.includes('寶藍')) return '#4361EE';
-  if (lower.includes('navy') || lower.includes('海軍藍') || lower.includes('深藍')) return '#000080';
-  if (lower.includes('sky blue') || lower.includes('天藍')) return '#87CEEB';
-  if (lower.includes('teal') || lower.includes('孔雀藍') || lower.includes('湖水綠')) return '#008080';
-  
-  // 🟥 紅/粉色系
-  if (lower.includes('hot pink') || lower.includes('熱粉') || lower.includes('亮粉') || lower.includes('豔粉')) return '#FF1493';
-  if (lower.includes('red') || lower.includes('紅')) return '#FF0000';
+  // 🟥 紅/粉/桃色系
+  if (lower.includes('hot pink') || lower.includes('豔粉') || lower.includes('亮粉')) return '#FF1493';
+  if (lower.includes('peach') || lower.includes('蜜桃') || lower.includes('桃')) return '#FFB7C5'; // 蜜桃粉
+  if (lower.includes('pink') || lower.includes('粉')) return '#FF69B4';
+  if (lower.includes('salmon') || lower.includes('鮭魚')) return '#FA8072';
+  if (lower.includes('red') || lower.includes('紅')) return '#FF4500';
   if (lower.includes('burgundy') || lower.includes('酒紅')) return '#800020';
   if (lower.includes('coral') || lower.includes('珊瑚')) return '#FF7F50';
-  if (lower.includes('salmon') || lower.includes('鮭魚')) return '#FA8072';
 
-  // ⬜ 灰/白色系
-  if (lower.includes('icy grey') || lower.includes('ice grey') || lower.includes('冰灰') || lower.includes('冰川灰')) return '#F0F8FF';
-  if (lower.includes('charcoal') || lower.includes('炭灰') || lower.includes('深灰')) return '#36454F';
-  if (lower.includes('grey') || lower.includes('gray') || lower.includes('灰')) return '#D3D3D3';
-  if (lower.includes('white') || lower.includes('白')) return '#FFFFFF';
+  // 🟦 藍/青色系
+  if (lower.includes('electric') || lower.includes('電光')) return '#00FFFF'; 
+  if (lower.includes('royal') || lower.includes('寶石') || lower.includes('寶藍')) return '#4361EE';
+  if (lower.includes('navy') || lower.includes('海軍') || lower.includes('深藍')) return '#000080';
+  if (lower.includes('sky') || lower.includes('天藍')) return '#87CEEB';
+  if (lower.includes('teal') || lower.includes('孔雀') || lower.includes('湖水')) return '#008080';
+  if (lower.includes('blue') || lower.includes('藍')) return '#4169E1';
   
-  // 🟩 綠色系
-  if (lower.includes('emerald') || lower.includes('祖母綠')) return '#2ECC71';
-  if (lower.includes('sage') || lower.includes('鼠尾草') || lower.includes('灰綠')) return '#98FB98';
-  if (lower.includes('olive') || lower.includes('橄欖')) return '#808000';
-  if (lower.includes('green') || lower.includes('綠')) return '#008000';
-  if (lower.includes('mint') || lower.includes('薄荷')) return '#98FF98';
-
-  // 🟨 黃/橘/棕色系
+  // 🟨 黃/橘/金色系
   if (lower.includes('mustard') || lower.includes('芥末')) return '#FFD700';
-  if (lower.includes('rust') || lower.includes('鐵鏽')) return '#B7410E';
+  if (lower.includes('gold') || lower.includes('金')) return '#FFD700'; // 金色
   if (lower.includes('yellow') || lower.includes('黃')) return '#FFFF00';
   if (lower.includes('orange') || lower.includes('橘') || lower.includes('橙')) return '#FFA500';
+  if (lower.includes('camel') || lower.includes('駝')) return '#C19A6B';
+  if (lower.includes('rust') || lower.includes('鐵鏽')) return '#B7410E';
   if (lower.includes('brown') || lower.includes('棕') || lower.includes('褐')) return '#A52A2A';
-  if (lower.includes('beige') || lower.includes('米色') || lower.includes('杏色')) return '#F5F5DC';
-  if (lower.includes('camel') || lower.includes('駝色')) return '#C19A6B';
+  
+  // 🟩 綠色系
+  if (lower.includes('emerald') || lower.includes('祖母')) return '#2ECC71';
+  if (lower.includes('sage') || lower.includes('鼠尾') || lower.includes('灰綠')) return '#98FB98';
+  if (lower.includes('olive') || lower.includes('橄欖')) return '#808000';
+  if (lower.includes('mint') || lower.includes('薄荷')) return '#98FF98';
+  if (lower.includes('green') || lower.includes('綠')) return '#32CD32'; // 草綠
+
+  // ⬜ 灰/白色系
+  if (lower.includes('icy') || lower.includes('冰')) return '#F0F8FF';
+  if (lower.includes('charcoal') || lower.includes('炭')) return '#36454F';
+  if (lower.includes('grey') || lower.includes('gray') || lower.includes('灰')) return '#D3D3D3';
+  if (lower.includes('white') || lower.includes('白')) return '#FFFFFF';
+  if (lower.includes('beige') || lower.includes('米') || lower.includes('杏')) return '#F5F5DC';
   if (lower.includes('khaki') || lower.includes('卡其')) return '#F0E68C';
 
   // ⬛ 黑色系
   if (lower.includes('black') || lower.includes('黑')) return '#000000';
   
   // 🟣 紫色系
-  if (lower.includes('purple') || lower.includes('紫')) return '#800080';
+  if (lower.includes('purple') || lower.includes('紫')) return '#9370DB';
   if (lower.includes('lavender') || lower.includes('薰衣草')) return '#E6E6FA';
   
   return '#CCCCCC'; 
 };
 
-// 🔥 修改：renderIcon 增加 colorHex 參數，讓圖示跟著變色
+// 🔥 強制變色 renderIcon
 const renderIcon = (iconKey: string, colorHex: string) => {
-  // 直接把顏色樣式灌進去，加上 drop-shadow 增加立體感
-  const style = { color: colorHex, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' };
+  // style 優先權最高，直接覆蓋所有 class
+  const style = { 
+      color: colorHex, 
+      fill: 'currentColor', // 確保 fill 也跟著變
+      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' // 加重陰影讓淺色在深背景更清楚
+  };
   const props = { className: "w-full h-full", style }; 
 
   switch (iconKey.toLowerCase()) {
@@ -126,7 +134,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
             </h2>
             <p className="text-base text-slate-600 dark:text-slate-300 font-medium">{data.weather.description}</p>
             
-            {/* 手機版排版修復 */}
+            {/* Grid 佈局修復手機版 */}
             <div className="mt-4 w-full grid grid-cols-3 gap-2 divide-x divide-slate-200 dark:divide-slate-700">
                <div className="text-center px-1">
                  <div className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white truncate">
@@ -250,7 +258,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
               <div className="w-14 h-14 mb-3 relative">
                  <div className="absolute inset-0 bg-slate-50 dark:bg-slate-700 rounded-full transform scale-0 group-hover:scale-100 transition-transform duration-300 ease-out"></div>
                  
-                 {/* 🔥 修改：把顏色傳進去，讓圖示變色 */}
+                 {/* 🔥 讓圖示變色的關鍵：傳入 getColorHex(item.color) */}
                  <div className="relative z-10 w-full h-full p-2.5 transform group-hover:-translate-y-1 transition-transform duration-300">
                    {renderIcon(item.icon, getColorHex(item.color))}
                  </div>
