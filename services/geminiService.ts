@@ -1,7 +1,7 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// ⚠️⚠️⚠️ 這是你的真鑰匙，請檢查是否有貼進去 ⚠️⚠️⚠️
-const FINAL_KEY = "AIzaSyAAwDoWIrkVJppg9jmzvKMqNrfaka57JJY"; // 請確認你的真鑰匙在這裡
+// ⚠️⚠️⚠️ 這是你的真鑰匙，請確認它在這裡 ⚠️⚠️⚠️
+const FINAL_KEY = "AIzaSyAAwDoWIrkVJppg9jmzvKMqNrfaka57JJY"; // 請確認引號內是你真正的鑰匙
 
 export const getGeminiSuggestion = async (
   apiKey: string, 
@@ -33,11 +33,9 @@ export const getGeminiSuggestion = async (
   請直接回傳 JSON 格式。
   `;
 
-  // 🔥 關鍵修改：在 FINAL_KEY 上面加上 .trim() 確保沒有多餘空格 🔥
-  const cleanedKey = FINAL_KEY.trim();
-
+  // 🔥 關鍵修改：改用 'gemini-2.5-flash'，這是目前最新、最可靠的模型 🔥
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cleanedKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${FINAL_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
