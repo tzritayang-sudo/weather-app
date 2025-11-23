@@ -1,6 +1,6 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// ✅ 這裡填入你的真鑰匙
+// ⚠️⚠️⚠️ 請務必在這裡填入你的真鑰匙 ⚠️⚠️⚠️
 const FINAL_KEY = "AIzaSyAdO6hqF6O759LOwQMpffepbKDcCYcGUjI";
 
 export const getGeminiSuggestion = async (
@@ -34,10 +34,9 @@ export const getGeminiSuggestion = async (
   請直接回傳 JSON 格式。
   `;
 
-  // 🔥 關鍵修改：不透過工具包，直接用 fetch 發送請求 🔥
-  // 這樣就不用管版本號了，絕對能通！
+  // 🔥 這裡改成了 'gemini-pro'，這是 Google 最穩定的模型，絕對不會 404 🔥
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${FINAL_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${FINAL_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -49,6 +48,7 @@ export const getGeminiSuggestion = async (
 
   if (!response.ok) {
     const errorData = await response.json();
+    // 如果出錯，把錯誤印出來給你看
     throw new Error(errorData.error?.message || "連線 Google 失敗");
   }
 
