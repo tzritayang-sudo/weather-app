@@ -45,17 +45,13 @@ const App: React.FC = () => {
   const [style, setStyle] = useState<Style>(() => (localStorage.getItem("pref_style") as Style) || Style.Casual);
   const [colorSeason, setColorSeason] = useState<ColorSeason>(() => (localStorage.getItem("pref_season") as ColorSeason) || ColorSeason.BrightWinter);
   
-  // 🔥 預設就選「現在」
+  // 預設選「現在」
   const [targetDay, setTargetDay] = useState<TargetDay>(TargetDay.Today);
-  // 注意：這裡預設值設為 Current，確保一進來就是「現在模式」
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(TimeOfDay.Current);
 
-  // 🔥 自動判斷現在時間與日期的邏輯
+  // 自動判斷時間邏輯
   const resolveTimeContext = (selectedTime: TimeOfDay): TimeOfDay => {
-      // 如果使用者不是選「現在」，就直接回傳他選的時間
       if (selectedTime !== TimeOfDay.Current) return selectedTime;
-      
-      // 如果選的是「現在」，就根據系統時間自動判斷
       const hour = new Date().getHours();
       if (hour >= 5 && hour < 12) return TimeOfDay.Morning;
       if (hour >= 12 && hour < 17) return TimeOfDay.Afternoon;
@@ -65,11 +61,8 @@ const App: React.FC = () => {
 
   const fetchData = useCallback(async () => {
     if (!location.trim()) return;
-    
     setLoading(true);
     setError(null);
-
-    // 儲存偏好
     try {
        localStorage.setItem("pref_location", location);
        localStorage.setItem("pref_gender", gender);
@@ -78,22 +71,16 @@ const App: React.FC = () => {
     } catch (e) {}
 
     try {
-      // 🔥 在送出給 AI 之前，把 "Now" 轉換成真正的時段 (例如 Afternoon)
       const actualTime = resolveTimeContext(timeOfDay);
-      console.log("Time Context Resolved:", timeOfDay, "->", actualTime); // 除錯用
-
       const result = await getGeminiSuggestion(location, gender, style, colorSeason, targetDay, actualTime);
       setData(result);
     } catch (err) {
       let errorMsg = '發生未知錯誤';
       if (err instanceof Error) {
         errorMsg = err.message;
-        if (errorMsg.includes("API Key") || errorMsg.includes("403")) {
-           errorMsg = "API Key 設定錯誤或遺失。請檢查環境變數。";
-        }
+        if (errorMsg.includes("API Key") || errorMsg.includes("403")) errorMsg = "API Key 設定錯誤。";
       }
       setError(errorMsg);
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -128,10 +115,9 @@ const App: React.FC = () => {
 
           <div className="p-5 md:p-8 flex flex-col gap-6">
             
-            {/* Location & Date/Time */}
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                {/* Location */}
+                {/* 地點 */}
                 <div className="md:col-span-5 space-y-2">
                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">目的地</label>
                    <form onSubmit={handleLocationSubmit} className="relative group">
@@ -159,7 +145,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Date Selector */}
+                {/* 日期 */}
                 <div className="md:col-span-3 space-y-2">
                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">哪一天？</label>
                    <div className="flex flex-col gap-2">
@@ -179,51 +165,58 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
-                {/* Time Selector */}
+                {/* 🔥 時間 (無滾輪按鈕版) */}
                 <div className="md:col-span-4 space-y-2">
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">哪個時段？</label>
-                  <div className="bg-slate-50 p-1.5 rounded-2xl border border-slate-100 h-[140px] overflow-y-auto custom-scrollbar">
-                     <div className="grid grid-cols-1 gap-1">
-                        {/* 🔥 1. 新增「現在」按鈕，並把它放在最上面 */}
-                        <button
-                            key="now"
-                            onClick={() => setTimeOfDay(TimeOfDay.Current)}
-                            className={`text-xs py-2.5 rounded-lg transition-all text-left px-3 flex items-center justify-between mb-1 sticky top-0 z-10
-                                ${timeOfDay === TimeOfDay.Current 
-                                    ? 'bg-indigo-600 text-white font-bold shadow-md ring-2 ring-indigo-200' 
-                                    : 'bg-white text-indigo-600 border border-indigo-100 hover:bg-indigo-50'}
-                            `}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-                              </span>
-                              <span>現在 (Now)</span>
-                            </div>
-                            {timeOfDay === TimeOfDay.Current && <ClockIcon className="w-3.5 h-3.5 text-white" />}
-                          </button>
+                  
+                  <div className="flex flex-col gap-2">
+                    {/* 1. 現在按鈕 */}
+                    <button
+                      key="now"
+                      onClick={() => setTimeOfDay(TimeOfDay.Current)}
+                      className={`w-full py-3 px-4 rounded-xl flex items-center justify-between transition-all duration-300
+                        ${timeOfDay === TimeOfDay.Current 
+                          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-[1.02] ring-2 ring-indigo-100' 
+                          : 'bg-white text-slate-600 border border-slate-100 hover:bg-indigo-50 hover:border-indigo-100 hover:text-indigo-600'}
+                      `}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="relative flex h-3 w-3">
+                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${timeOfDay === TimeOfDay.Current ? 'bg-white' : 'bg-indigo-500'}`}></span>
+                          <span className={`relative inline-flex rounded-full h-3 w-3 ${timeOfDay === TimeOfDay.Current ? 'bg-white' : 'bg-indigo-500'}`}></span>
+                        </span>
+                        <span className="font-bold text-sm">現在 (Now)</span>
+                      </div>
+                      <ClockIcon className={`w-5 h-5 ${timeOfDay === TimeOfDay.Current ? 'text-white' : 'text-indigo-400'}`} />
+                    </button>
 
-                        {/* 其他時段按鈕 */}
-                        {Object.values(TimeOfDay).filter(t => t !== TimeOfDay.Current).map((t) => (
+                    {/* 2. 其他時段 (2x2 網格) */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.values(TimeOfDay)
+                        .filter(t => t !== TimeOfDay.Current)
+                        .map((t) => (
                           <button
                             key={t}
                             onClick={() => setTimeOfDay(t)}
-                            className={`text-xs py-2.5 rounded-lg transition-all text-left px-3 flex items-center justify-between ${timeOfDay === t ? 'bg-white text-indigo-600 font-bold shadow-sm border border-slate-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                            className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all text-center border
+                              ${timeOfDay === t 
+                                ? 'bg-slate-800 text-white border-slate-800 shadow-md transform scale-105' 
+                                : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50 hover:text-slate-700'}
+                            `}
                           >
-                            <span>{t.split('(')[1].replace(')','')}</span>
-                            {timeOfDay === t && <ClockIcon className="w-3.5 h-3.5" />}
+                            {t.split('(')[1].replace(')','')}
                           </button>
-                        ))}
-                     </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
+
               </div>
             </div>
 
             <hr className="border-slate-100" />
 
-            {/* Personalization Grid (保持原樣) */}
+            {/* 個人化選項 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-4">
                    <div className="space-y-2">
@@ -244,33 +237,30 @@ const App: React.FC = () => {
                    </div>
                </div>
 
-               {/* Color Season */}
                <div className="space-y-2">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <span>色彩季型</span>
-                  </label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">色彩季型</label>
                   <div className="bg-slate-50 p-1.5 rounded-xl border border-slate-100">
                     <select 
                       value={colorSeason}
                       onChange={(e) => setColorSeason(e.target.value as ColorSeason)}
                       className="w-full bg-white border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm"
                     >
-                      <optgroup label="Winter (冬 - 冷冽/對比)">
+                      <optgroup label="Winter (冬)">
                         <option value={ColorSeason.BrightWinter}>{ColorSeason.BrightWinter}</option>
                         <option value={ColorSeason.TrueWinter}>{ColorSeason.TrueWinter}</option>
                         <option value={ColorSeason.DarkWinter}>{ColorSeason.DarkWinter}</option>
                       </optgroup>
-                      <optgroup label="Spring (春 - 活潑/明亮)">
+                      <optgroup label="Spring (春)">
                         <option value={ColorSeason.BrightSpring}>{ColorSeason.BrightSpring}</option>
                         <option value={ColorSeason.TrueSpring}>{ColorSeason.TrueSpring}</option>
                         <option value={ColorSeason.LightSpring}>{ColorSeason.LightSpring}</option>
                       </optgroup>
-                      <optgroup label="Summer (夏 - 柔和/粉嫩)">
+                      <optgroup label="Summer (夏)">
                         <option value={ColorSeason.LightSummer}>{ColorSeason.LightSummer}</option>
                         <option value={ColorSeason.TrueSummer}>{ColorSeason.TrueSummer}</option>
                         <option value={ColorSeason.SoftSummer}>{ColorSeason.SoftSummer}</option>
                       </optgroup>
-                      <optgroup label="Autumn (秋 - 濃郁/溫暖)">
+                      <optgroup label="Autumn (秋)">
                         <option value={ColorSeason.SoftAutumn}>{ColorSeason.SoftAutumn}</option>
                         <option value={ColorSeason.TrueAutumn}>{ColorSeason.TrueAutumn}</option>
                         <option value={ColorSeason.DarkAutumn}>{ColorSeason.DarkAutumn}</option>
