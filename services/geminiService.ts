@@ -1,7 +1,7 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
 // ✅ 這裡填入你的真鑰匙
-const FINAL_KEY = "AIzaSyAd06hqF60759LOwQMpffepbKDcCYcGUjI";
+const FINAL_KEY = "AIzaSyAdO6hqF6O759LOwQMpffepbKDcCYcGUjI";
 
 export const getGeminiSuggestion = async (
   apiKey: string, 
