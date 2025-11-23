@@ -13,21 +13,18 @@ interface ResultDisplayProps {
 // 🔥 高亮版色碼轉換 (專為深色模式優化)
 const getColorHex = (colorName: string) => {
   const lower = colorName.toLowerCase();
-  // 使用高飽和度、高亮度的 Hex Code
-  if (lower.includes('electric blue')) return '#00FFFF'; // 螢光青
-  if (lower.includes('hot pink')) return '#FF1493';      // 亮粉紅
-  if (lower.includes('icy grey') || lower.includes('ice grey')) return '#F0F8FF'; // 幾乎純白
-  if (lower.includes('emerald')) return '#2ECC71';       // 亮綠
-  if (lower.includes('royal blue')) return '#4361EE';    // 亮寶藍
-  if (lower.includes('mustard')) return '#FFD700';       // 金黃
-  if (lower.includes('rust')) return '#FF7F50';          // 珊瑚橘 (比暗紅更亮)
-  if (lower.includes('sage')) return '#98FB98';          // 蒼白綠 (比一般鼠尾草更亮)
+  if (lower.includes('electric blue')) return '#00FFFF';
+  if (lower.includes('hot pink')) return '#FF1493';
+  if (lower.includes('icy grey') || lower.includes('ice grey')) return '#F0F8FF';
+  if (lower.includes('emerald')) return '#2ECC71';
+  if (lower.includes('royal blue')) return '#4361EE';
+  if (lower.includes('mustard')) return '#FFD700';
+  if (lower.includes('rust')) return '#FF7F50';
+  if (lower.includes('sage')) return '#98FB98';
   if (lower.includes('charcoal')) return '#36454F';
   if (lower.includes('navy')) return '#000080';
   if (lower.includes('white')) return '#FFFFFF';
   if (lower.includes('black')) return '#000000';
-  
-  // 如果沒對應到，回傳原字串
   return colorName;
 };
 
@@ -91,20 +88,33 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
             </h2>
             <p className="text-base text-slate-600 dark:text-slate-300 font-medium">{data.weather.description}</p>
             
-            <div className="mt-2 flex items-center justify-center md:justify-start gap-6">
-               <div className="text-center">
-                 <div className="text-3xl font-bold text-slate-800 dark:text-white">{data.weather.temperature.split(' ')[0]}</div>
-                 <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">氣溫</div>
+            {/* 🔥 手機版排版修復：使用 Grid 平分空間，防止擠壓 */}
+            <div className="mt-4 w-full grid grid-cols-3 gap-2 divide-x divide-slate-200 dark:divide-slate-700">
+               <div className="text-center px-1">
+                 <div className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white truncate">
+                   {data.weather.temperature.split(' ')[0]}
+                 </div>
+                 <div className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">
+                   氣溫
+                 </div>
                </div>
-               <div className="w-px h-10 bg-slate-200 dark:bg-slate-700"></div>
-               <div className="text-center">
-                 <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{data.weather.feelsLike || data.weather.temperature.split(' ')[0]}</div>
-                 <div className="text-xs text-indigo-500 dark:text-indigo-300 font-medium">體感</div>
+               
+               <div className="text-center px-1">
+                 <div className="text-2xl md:text-3xl font-bold text-indigo-600 dark:text-indigo-400 truncate">
+                   {data.weather.feelsLike || data.weather.temperature.split(' ')[0]}
+                 </div>
+                 <div className="text-[10px] md:text-xs text-indigo-500 dark:text-indigo-300 font-medium uppercase tracking-wider">
+                   體感
+                 </div>
                </div>
-               <div className="w-px h-10 bg-slate-200 dark:bg-slate-700"></div>
-               <div className="text-center">
-                 <div className="text-3xl font-bold text-slate-800 dark:text-white">{data.weather.rainProb}</div>
-                 <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">降雨率</div>
+               
+               <div className="text-center px-1">
+                 <div className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white truncate">
+                   {data.weather.rainProb}
+                 </div>
+                 <div className="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">
+                   降雨率
+                 </div>
                </div>
             </div>
 
@@ -161,7 +171,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
         </div>
       )}
 
-      {/* 3. 色票 (修正深色顯示) */}
+      {/* 3. 色票 */}
       {data.outfit.colorPalette && data.outfit.colorPalette.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
           <div className="flex items-center justify-between mb-3">
@@ -171,7 +181,6 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
             <div className="flex items-center gap-2">
               {data.outfit.colorPalette.map((color, idx) => (
                 <div key={idx} className="group relative">
-                  {/* 🔥 色票修正：加入 ring, opacity, isolation */}
                   <div 
                     className="w-10 h-10 rounded-full shadow-lg border-2 border-white dark:border-slate-600 ring-1 ring-slate-100 dark:ring-slate-700 transition-transform transform hover:scale-110 hover:z-10 cursor-pointer relative z-10"
                     style={{ 
