@@ -1,6 +1,6 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// 🔥 改用最通用的 gemini-pro，這幾乎不可能 404
+// 您的選擇
 const MODEL_NAME = "gemini-2.5-flash"; 
 
 const getApiKey = (keyName: string) => {
@@ -9,11 +9,21 @@ const getApiKey = (keyName: string) => {
   return envKey.trim();
 }
 
+// 🔥 1. 把色彩翻譯機加回來，圖片才會準
+function simplifyColorForSearch(query: string): string {
+    const map: Record<string, string> = { "electric blue": "royal blue", "hot pink": "bright pink", "icy grey": "light grey", "pine green": "dark green", "emerald green": "dark green", "mustard": "yellow", "rust": "orange brown", "terracotta": "brown orange", "sage green": "light green", "oatmeal": "beige", "taupe": "brown grey", "mauve": "purple grey", "burgundy": "dark red", "teal": "blue green" };
+    let simpleQuery = query.toLowerCase();
+    Object.keys(map).forEach(key => { if (simpleQuery.includes(key)) simpleQuery = simpleQuery.replace(key, map[key]); });
+    return simpleQuery;
+}
+
 async function fetchPexelsImages(query: string): Promise<string[]> {
     const pexelsKey = getApiKey("VITE_PEXELS_API_KEY");
     if (!pexelsKey) return [];
     try {
-        const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query + " outfit")}&per_page=3&orientation=portrait`;
+        // 使用簡化後的顏色搜尋，準確度較高
+        const safeQuery = simplifyColorForSearch(query) + " outfit street style";
+        const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQuery)}&per_page=3&orientation=portrait`;
         const res = await fetch(url, { headers: { Authorization: pexelsKey } });
         if (!res.ok) return [];
         const data = await res.json();
@@ -32,7 +42,6 @@ function repairJson(jsonString: string): string {
 
 async function fetchRealWeather(location: string): Promise<string> {
     try {
-        // 簡單直接抓取，不加太多判斷
         const res = await fetch(`https://wttr.in/${encodeURIComponent(location)}?format=j1`);
         if (!res.ok) return "";
         const data = await res.json();
@@ -68,8 +77,11 @@ export const getGeminiSuggestion = async (
   ${realWeather}
 
   【要求】
-  1. 濕度高時推薦透氣材質。
-  2. Icon 請準確選擇：t-shirt, shirt, pants, skirt, dress, coat, jacket, sneakers, boots, bag。
+  1. 濕度邏輯：濕度高時推薦透氣材質。
+  2. Icon 準確選擇：t-shirt, shirt, pants, skirt, dress, coat, jacket, sneakers, boots, bag。
+
+  【色彩規則：嚴格遵守 ${colorSeason}】
+  (請依照 12 季型色彩理論，避開禁忌色，推薦最能襯托膚色的顏色)
 
   【回傳 JSON】
   {
@@ -90,7 +102,6 @@ export const getGeminiSuggestion = async (
   }
   `;
 
-  // 標準 v1beta 接口
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${googleKey}`;
   
   try {
@@ -103,7 +114,7 @@ export const getGeminiSuggestion = async (
       })
     });
 
-    if (!response.ok) throw new Error(`API Fail: ${response.status}`); // 如果這裡還是 404，那真的是見鬼了
+    if (!response.ok) throw new Error(`API Fail: ${response.status}`);
 
     const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
