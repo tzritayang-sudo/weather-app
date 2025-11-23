@@ -58,32 +58,37 @@ const getColorHex = (colorName: string) => {
   if (lower.includes('purple') || lower.includes('紫')) return '#800080';
   if (lower.includes('lavender') || lower.includes('薰衣草')) return '#E6E6FA';
   
-  return '#CCCCCC'; // 預設灰色，避免空心
+  return '#CCCCCC'; 
 };
 
-const renderIcon = (iconKey: string) => {
-  const props = { className: "w-full h-full" };
+// 🔥 修改：renderIcon 增加 colorHex 參數，讓圖示跟著變色
+const renderIcon = (iconKey: string, colorHex: string) => {
+  // 直接把顏色樣式灌進去，加上 drop-shadow 增加立體感
+  const style = { color: colorHex, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' };
+  const props = { className: "w-full h-full", style }; 
+
   switch (iconKey.toLowerCase()) {
-    case 't-shirt': return <TShirtIcon {...props} className="text-sky-500" />;
-    case 'shirt': return <ShirtIcon {...props} className="text-indigo-400" />;
-    case 'polo': return <ShirtIcon {...props} className="text-cyan-500" />;
-    case 'sweater': return <SweaterIcon {...props} className="text-orange-400" />;
-    case 'hoodie': return <HoodieIcon {...props} className="text-violet-400" />;
-    case 'jacket': return <JacketIcon {...props} className="text-slate-400" />;
-    case 'coat': return <CoatIcon {...props} className="text-stone-400" />;
-    case 'pants': return <PantsIcon {...props} className="text-slate-400" />;
-    case 'shorts': return <ShortsIcon {...props} className="text-amber-500" />;
-    case 'skirt': return <SkirtIcon {...props} className="text-rose-400" />;
-    case 'dress': return <DressIcon {...props} className="text-rose-500" />;
-    case 'sneakers': return <SneakerIcon {...props} className="text-emerald-400" />;
-    case 'boots': return <BootIcon {...props} className="text-stone-500" />;
-    case 'formal': case 'formal-shoes': return <FormalShoeIcon {...props} className="text-slate-300" />;
-    case 'sandals': case 'heels': return <SandalsIcon {...props} className="text-red-400" />;
-    case 'bag': return <BagIcon {...props} className="text-amber-600" />;
-    case 'umbrella': return <UmbrellaIcon {...props} className="text-blue-400" />;
-    case 'hat': return <HatIcon {...props} className="text-orange-500" />;
-    case 'scarf': return <ScarfIcon {...props} className="text-purple-400" />;
-    default: return <GenericClothingIcon {...props} className="text-gray-400" />;
+    case 't-shirt': return <TShirtIcon {...props} />;
+    case 'shirt': case 'polo': return <ShirtIcon {...props} />;
+    case 'sweater': return <SweaterIcon {...props} />;
+    case 'hoodie': return <HoodieIcon {...props} />;
+    case 'jacket': return <JacketIcon {...props} />;
+    case 'coat': return <CoatIcon {...props} />;
+    case 'pants': return <PantsIcon {...props} />;
+    case 'shorts': return <ShortsIcon {...props} />;
+    case 'skirt': return <SkirtIcon {...props} />;
+    case 'dress': return <DressIcon {...props} />;
+    case 'sneakers': return <SneakerIcon {...props} />;
+    case 'boots': return <BootIcon {...props} />;
+    case 'formal': case 'formal-shoes': return <FormalShoeIcon {...props} />;
+    case 'sandals': case 'heels': return <SandalsIcon {...props} />;
+    case 'bag': return <BagIcon {...props} />;
+    case 'umbrella': return <UmbrellaIcon {...props} />;
+    case 'hat': return <HatIcon {...props} />;
+    case 'scarf': return <ScarfIcon {...props} />;
+    case 'glasses': return <GlassesIcon {...props} />;
+    case 'watch': return <WatchIcon {...props} />;
+    default: return <GenericClothingIcon {...props} />;
   }
 };
 
@@ -244,7 +249,12 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
               <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent opacity-50"></div>
               <div className="w-14 h-14 mb-3 relative">
                  <div className="absolute inset-0 bg-slate-50 dark:bg-slate-700 rounded-full transform scale-0 group-hover:scale-100 transition-transform duration-300 ease-out"></div>
-                 <div className="relative z-10 w-full h-full p-2.5 transform group-hover:-translate-y-1 transition-transform duration-300">{renderIcon(item.icon)}</div>
+                 
+                 {/* 🔥 修改：把顏色傳進去，讓圖示變色 */}
+                 <div className="relative z-10 w-full h-full p-2.5 transform group-hover:-translate-y-1 transition-transform duration-300">
+                   {renderIcon(item.icon, getColorHex(item.color))}
+                 </div>
+
               </div>
               <div className="w-full space-y-2">
                 <div><span className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] md:text-xs font-bold border border-slate-200 dark:border-slate-600 rounded-full">{item.color}</span></div>
