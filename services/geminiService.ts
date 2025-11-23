@@ -53,24 +53,45 @@ async function fetchRealWeather(location: string): Promise<string> {
         if (!searchLoc.includes("台灣") && !searchLoc.includes("Taiwan") && !searchLoc.includes("Japan") && !searchLoc.includes("Korea") && !searchLoc.includes("China")) {
              searchLoc = `${location}, Taiwan`; 
         }
+        
         const res = await fetch(`https://wttr.in/${encodeURIComponent(searchLoc)}?format=j1`);
-        if (!res.ok) return "";
+        
+        if (!res.ok) {
+            console.warn("Weather API returned status:", res.status);
+            return ""; // 如果 API 掛了，優雅降級，讓 AI 自己猜
+        }
+        
         const data = await res.json();
-        const current = data.current_condition[0];
+        
+        // 🔥 防呆保護：確保所有屬性都存在再讀取
+        const current = data.current_condition?.[0];
+        if (!current) return "";
+
+        const temp = current.temp_C || "25";
+        const feelsLike = current.FeelsLikeC || temp;
+        const humidity = current.humidity || "70";
+        const weatherDesc = current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value || "多雲";
+        
+        // 嘗試取得區域名稱，若失敗則回傳原搜尋地點
         const areaName = data.nearest_area?.[0]?.areaName?.[0]?.value || location;
-        const humidity = current.humidity; // 🔥 抓取濕度
+        
+        // 嘗試取得降雨機率
+        const rainProb = data.weather?.[0]?.hourly?.[0]?.chanceofrain || "0";
 
         return `
         【真實天氣】
         - 地點: ${areaName}
-        - 氣溫: ${current.temp_C}°C
-        - 體感: ${current.FeelsLikeC}°C
-        - 濕度: ${humidity}%  <-- 重要！
-        - 天氣: ${current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value}
-        - 降雨機率: ${data.weather?.[0]?.hourly?.[0]?.chanceofrain || 0}%
+        - 氣溫: ${temp}°C
+        - 體感: ${feelsLike}°C
+        - 濕度: ${humidity}%
+        - 天氣: ${weatherDesc}
+        - 降雨機率: ${rainProb}%
         (請務必根據濕度調整建議，並將數值填入 weather.humidity)
         `;
-    } catch (e) { return ""; }
+    } catch (e) { 
+        console.error("Weather fetch error:", e);
+        return ""; // 發生任何錯誤都回傳空字串，不要讓整個流程掛掉
+    }
 }
 
 export const getGeminiSuggestion = async (
@@ -91,7 +112,6 @@ export const getGeminiSuggestion = async (
 
   const realWeather = await fetchRealWeather(location);
 
-  // 🔥 Prompt 加入濕度穿搭邏輯
   const prompt = `
   角色：專業氣象色彩顧問。
   使用者：${genderStr}, 風格：${styleStr}。
