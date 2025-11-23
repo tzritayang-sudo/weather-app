@@ -1,6 +1,6 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// ⚠️⚠️⚠️ 記得填入真鑰匙 ⚠️⚠️⚠️
+// ⚠️⚠️⚠️ 這是你剛剛用的真鑰匙，請確認它在這裡 ⚠️⚠️⚠️
 const FINAL_KEY = "AIzaSyCRJpa_pprHp67z4HGZIEmGjWyyfeEalVY";
 
 export const getGeminiSuggestion = async (
@@ -33,9 +33,9 @@ export const getGeminiSuggestion = async (
   請直接回傳 JSON 格式。
   `;
 
-  // 🔥 這裡使用 fetch (繞過舊工具) + 1.5-flash (Google 認得的新模型) 🔥
+  // 🔥 關鍵修改：改用 'gemini-1.0-pro'，這是目前 Vercel 環境中最穩定的模型名稱 🔥
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${FINAL_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent?key=${FINAL_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
