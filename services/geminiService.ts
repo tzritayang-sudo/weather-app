@@ -1,7 +1,7 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
 // 🔥 使用你指定的版本 (如果還是 API Fail，請手動改成 gemini-pro)
-const MODEL_NAME = "gemini-2.5-flash"; 
+const MODEL_NAME = "gemini-pro"; 
 
 const getApiKey = (keyName: string) => {
   const envKey = import.meta.env[keyName];
