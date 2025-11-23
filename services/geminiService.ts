@@ -8,32 +8,25 @@ const getApiKey = (keyName: string) => {
   return envKey.trim();
 }
 
-// 🔥 Pexels 搜尋優化版：強制加上 "outfit" 避免搜到風景圖
 async function fetchPexelsImages(query: string): Promise<string[]> {
     const pexelsKey = getApiKey("VITE_PEXELS_API_KEY");
     if (!pexelsKey) return [];
 
     try {
-        // 增加隨機頁數，避免每次都看到一樣的圖
         const randomPage = Math.floor(Math.random() * 5) + 1;
-        
-        // 🛡️ 防呆機制：如果關鍵字裡沒有 "outfit" 或 "fashion"，強制加上去
-        // 這樣 "Sage Green" 就會變成 "Sage Green outfit"，確保搜到衣服
         let safeQuery = query;
         const lowerQ = query.toLowerCase();
-        if (!lowerQ.includes("outfit") && !lowerQ.includes("fashion") && !lowerQ.includes("clothes") && !lowerQ.includes("style")) {
+        if (!lowerQ.includes("outfit") && !lowerQ.includes("fashion") && !lowerQ.includes("clothes")) {
              safeQuery = `${query} outfit`; 
         }
-
         const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQuery)}&per_page=3&page=${randomPage}&orientation=portrait`;
         const res = await fetch(url, { headers: { Authorization: pexelsKey } });
         if (!res.ok) return [];
         const data = await res.json();
         
-        // 如果找不到，嘗試縮短關鍵字重試 (例如去掉太冷門的形容詞)
         if (data.photos.length === 0 && query.includes(" ")) {
             const shorter = query.split(" ").slice(1).join(" "); 
-            return fetchPexelsImages(shorter); // 遞迴重試
+            return fetchPexelsImages(shorter);
         }
         return data.photos.map((photo: any) => photo.src.large2x || photo.src.medium);
     } catch (e) { return []; }
@@ -66,22 +59,62 @@ export const getGeminiSuggestion = async (
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式' : '運動';
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
 
-  // 12 色彩季型詳細定義庫 (讓 AI 選色更精準)
+  // 🔥 12 色彩季型全攻略 (包含避雷區)
   const prompt = `
-  角色：專業氣象主播兼時尚顧問。
+  角色：極度嚴格的色彩形象顧問。
   使用者：${genderStr}, 風格：${styleStr}。
   任務：針對「${colorSeason}」色彩季型，在「${location} ${dayLabel}${timeOfDay}」提供穿搭建議。
 
-  【重要規則】
-  1. **語言**：JSON 所有描述文字 (description, tips, advice) 必須用 **繁體中文**。
-  2. **天氣建議 (advice)**：請提供一段 50-80 字的溫暖叮嚀 (例如：體感溫度、是否帶傘、洋蔥式穿法)。
-  3. **Visual Prompts**：生成搜尋關鍵字時，請使用 **[具體色名] + [單品]** (例如 "Sage Green Sweater")，不要寫長句子。
+  【色彩資料庫：請嚴格遵守 ${colorSeason} 的規則，絕對禁止使用避雷色】
 
-  【色彩資料庫 - 請從這裡選色】
-  ❄️ WINTER: Electric Blue, Hot Pink, Icy Grey, Pine Green, Royal Blue, Black, White.
-  🍂 AUTUMN: Sage Green, Rust, Mustard, Terracotta, Olive, Cream, Brown.
-  ☀️ SPRING: Coral, Turquoise, Lime Green, Cream, Bright Yellow, Warm Grey.
-  🌊 SUMMER: Powder Blue, Lavender, Soft Grey, Mint, Rose Pink, Cocoa.
+  ❄️ **WINTER (冬 - 冷/艷/深)**
+  1. **Bright Winter (淨冬)**:
+     - ✅ 推薦: Electric Blue, Hot Pink, Lemon Yellow, Emerald Green, Pine Green, Icy Grey, Pure White, Black. (高對比/鮮豔)
+     - ❌ **禁止**: Olive Green, Mustard, Rust, Soft Pastels, Muted Earth Tones.
+  2. **True Winter (冷冬)**:
+     - ✅ 推薦: Holly Berry Red, Sapphire Blue, Royal Purple, Emerald, Charcoal, White, Black, Cool Grey. (正冷色)
+     - ❌ **禁止**: Golden Brown, Orange, Warm Beige, Camel, Peach.
+  3. **Dark Winter (深冬)**:
+     - ✅ 推薦: Deep Teal, Burgundy, Midnight Blue, Dark Chocolate (Cool), Black, Charcoal, Deep Plum. (深沉濃郁)
+     - ❌ **禁止**: Pale Pastels, Light Peach, Warm Orange, Light Beige.
+
+  🍂 **AUTUMN (秋 - 暖/柔/深)**
+  4. **Soft Autumn (柔秋)**:
+     - ✅ 推薦: Sage Green, Dusty Pink, Oatmeal, Khaki, Warm Grey, Salmon, Olive, Butter Yellow. (低飽和/霧面)
+     - ❌ **禁止**: Black, Bright Fuchsia, Electric Blue, Stark White.
+  5. **True Autumn (暖秋)**:
+     - ✅ 推薦: Mustard, Rust, Olive Green, Tomato Red, Golden Brown, Teal, Camel, Cream. (正暖色/大地色)
+     - ❌ **禁止**: Pastel Pink, Blue-Grey, Black, Cool Berry.
+  6. **Dark Autumn (深秋)**:
+     - ✅ 推薦: Dark Olive, Terracotta, Dark Chocolate, Deep Forest Green, Burnt Orange, Maroon, Gold. (深沉溫暖)
+     - ❌ **禁止**: Pale Pastels, Cool Grey, Hot Pink, Lilac.
+
+  ☀️ **SPRING (春 - 暖/亮/清)**
+  7. **Bright Spring (淨春)**:
+     - ✅ 推薦: Bright Coral, Turquoise, Lime Green, Bright Yellow, Poppy Red, Warm Grey, Cream. (高彩度暖色)
+     - ❌ **禁止**: Dusty colors, Muted Grey, Black, Burgundy.
+  8. **True Spring (暖春)**:
+     - ✅ 推薦: Golden Yellow, Peach, Salmon, Grass Green, Aqua, Camel, Ivory. (正暖亮色)
+     - ❌ **禁止**: Black, Cool White, Dark Grey, Berry colors.
+  9. **Light Spring (淺春)**:
+     - ✅ 推薦: Pale Peach, Mint Green, Pale Yellow, Light Aqua, Ivory, Beige, Light Coral. (粉嫩暖色)
+     - ❌ **禁止**: Black, Dark Brown, Burgundy, Navy.
+
+  🌊 **SUMMER (夏 - 冷/柔/淺)**
+  10. **Light Summer (淺夏)**:
+     - ✅ 推薦: Powder Blue, Pale Pink, Lavender, Light Grey, Off-White, Mint, Sky Blue. (粉嫩冷色)
+     - ❌ **禁止**: Black, Orange, Mustard, Dark Brown.
+  11. **True Summer (冷夏)**:
+     - ✅ 推薦: Raspberry, Soft Blue, Rose Pink, Grey Blue, Slate Grey, Cocoa (Cool), Soft White. (正冷柔色)
+     - ❌ **禁止**: Orange, Gold, Rust, Yellow-Green.
+  12. **Soft Summer (柔夏)**:
+     - ✅ 推薦: Mauve, Dusty Blue, Grey Green, Charcoal Blue, Taupe, Soft White, Rose Brown. (帶灰調冷色)
+     - ❌ **禁止**: Black, Bright Orange, Electric Blue, Stark White.
+
+  【其他規則】
+  1. 語言：JSON 所有描述文字必須用 **繁體中文**。
+  2. 天氣建議：請提供 50-80 字的中文天氣叮嚀。
+  3. Visual Prompts：請使用 **[準確色名] + [單品]** (例如 "Emerald Green Coat" 而非 "Green Coat")。
 
   請回傳 JSON:
   {
@@ -89,7 +122,7 @@ export const getGeminiSuggestion = async (
     "weather": {
       "location": "${location}",
       "temperature": "溫度", "feelsLike": "體感", "humidity": "濕度", "rainProb": "機率", "description": "簡述",
-      "advice": "這裡寫詳細的天氣叮嚀...",
+      "advice": "天氣叮嚀...",
       "forecast": [
          { "day": "今天", "condition": "...", "high": "...", "low": "...", "rainProb": "..." },
          { "day": "明天", "condition": "...", "high": "...", "low": "...", "rainProb": "..." },
@@ -100,7 +133,7 @@ export const getGeminiSuggestion = async (
       "items": [
          { "item": "單品名", "color": "色名", "reason": "理由", "detail": "細節", "icon": "tshirt" }
       ],
-      "tips": "整體建議",
+      "tips": "建議",
       "colorPalette": ["#Hex1", "#Hex2", "#Hex3"],
       "colorDescription": "配色說明",
       "visualPrompts": ["Specific Color Item", "Specific Color Item"]
@@ -128,12 +161,10 @@ export const getGeminiSuggestion = async (
     parsedData = JSON.parse(repairJson(rawText));
     
     if (!parsedData.weather.advice && parsedData.weather.description) {
-        parsedData.weather.advice = `目前天氣${parsedData.weather.description}，請留意氣溫變化。`;
+        parsedData.weather.advice = `目前天氣${parsedData.weather.description}，出門請留意天氣變化。`;
     }
-
   } catch (e) { throw e; }
 
-  // 平行搜尋圖片
   if (parsedData.outfit?.visualPrompts?.length > 0) {
       const [images1, images2] = await Promise.all([
           fetchPexelsImages(parsedData.outfit.visualPrompts[0]),
@@ -141,7 +172,6 @@ export const getGeminiSuggestion = async (
       ]);
       parsedData.generatedImages = [...images1.slice(0, 2), ...images2.slice(0, 1)];
       
-      // 備用搜尋
       if (parsedData.generatedImages.length === 0) {
            const backupColor = parsedData.outfit.items[0].color; 
            parsedData.generatedImages = await fetchPexelsImages(`${backupColor} fashion outfit`);
