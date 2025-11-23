@@ -1,7 +1,7 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// 🔥 改成最穩定、絕對存在的版本名稱
-const MODEL_NAME = "gemini-pro"; 
+// 🔥 使用你指定的版本 (如果還是 API Fail，請手動改成 gemini-pro)
+const MODEL_NAME = "gemini-2.5-flash"; 
 
 const getApiKey = (keyName: string) => {
   const envKey = import.meta.env[keyName];
@@ -62,14 +62,20 @@ async function fetchRealWeather(location: string): Promise<string> {
 
         const temp = current.temp_C || "25";
         const feelsLike = current.FeelsLikeC || temp;
-        const humidity = current.humidity || "70"; // 濕度
+        const humidity = current.humidity || "70";
         const weatherDesc = current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value || "";
         const areaName = data.nearest_area?.[0]?.areaName?.[0]?.value || location;
         const rainProb = data.weather?.[0]?.hourly?.[0]?.chanceofrain || "0";
 
         return `
         【真實天氣數據】
-        地點:${areaName}, 氣溫:${temp}°C, 體感:${feelsLike}°C, 濕度:${humidity}%, 天氣:${weatherDesc}, 降雨:${rainProb}%
+        - 地點: ${areaName}
+        - 氣溫: ${temp}°C
+        - 體感: ${feelsLike}°C
+        - 濕度: ${humidity}%
+        - 天氣: ${weatherDesc}
+        - 降雨機率: ${rainProb}%
+        (請務必將濕度填入 JSON 的 weather.humidity 欄位)
         `;
     } catch (e) { return ""; }
 }
@@ -88,36 +94,34 @@ export const getGeminiSuggestion = async (
 
   const genderStr = gender === Gender.Male ? '男士' : '女士';
   const styleStr = style === Style.Casual ? '休閒' : '正式';
-  
+  const dayLabel = targetDay === TargetDay.Today ? '今天' : '明天';
+
   const realWeather = await fetchRealWeather(location);
 
-  // Prompt 保持完整 (包含你之前的所有規則 + 新增的圖示/濕度)
   const prompt = `
   角色：色彩顧問。
   使用者：${genderStr}, 風格：${styleStr}。
   任務：針對「${colorSeason}」提供穿搭。
   ${realWeather}
 
-  【濕度邏輯】
-  若濕度>80%，推薦透氣或防水材質。
+  【濕度穿搭邏輯】
+  1. 濕度高 (>80%) 且熱：推薦亞麻、排汗材質。
+  2. 濕度高 (>80%) 且冷：需防風防水。
 
-  【Icon 選擇 (重要)】
+  【Icon 選擇】
   請為每個 items[].icon 選擇最合適的 key：
   "t-shirt", "shirt", "sweater", "hoodie", "jacket", "coat", "pants", "shorts", "skirt", "dress", 
   "sneakers", "boots", "formal-shoes", "sandals", "bag", "umbrella", "hat", "scarf", "glasses", "watch"
-
-  【色彩規則：嚴格遵守 ${colorSeason}，避開禁忌色】
-  (請依照 12 季型規則推薦顏色)
 
   【回傳 JSON】
   {
     "location": "...",
     "weather": {
-       "temperature": "...", "feelsLike": "...", "humidity": "...", "rainProb": "...", "description": "...", "advice": "..."
+      "temperature": "...", "feelsLike": "...", "humidity": "...", "rainProb": "...", "description": "...", "advice": "..."
     },
     "outfit": {
       "items": [
-         { "item": "單品名稱", "color": "顏色", "reason": "...", "detail": "...", "icon": "t-shirt" }
+         { "item": "單品", "color": "顏色", "reason": "...", "detail": "...", "icon": "..." }
       ],
       "tips": "...",
       "colorPalette": ["色1", "色2"],
@@ -128,7 +132,6 @@ export const getGeminiSuggestion = async (
   }
   `;
 
-  // 注意：gemini-pro 使用 v1beta 版本 API
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${googleKey}`;
   let parsedData: WeatherOutfitResponse;
 
