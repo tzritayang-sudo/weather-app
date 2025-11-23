@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
 // 🔥 萬能鑰匙：直接寫死在這裡，保證讀得到 🔥
-const FINAL_KEY = "AIzaSyAd06hqF60759LOwQMpffepbKDcCYcGUjI";
+const FINAL_KEY = "AIzaSyAdO6hqF6O759LOwQMpffepbKDcCYcGUjI";
 
 export const getGeminiSuggestion = async (
   apiKey: string, 
