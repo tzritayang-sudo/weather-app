@@ -1,25 +1,19 @@
-// 檔案位置: services/geminiService.ts
-
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// 🔥 設定正確的模型名稱 (注意：這裡不要自己加 "models/")
+// 🔥 設定正確的模型名稱
 const MODEL_NAME = "gemini-2.5-flash"; 
 
 // 🎯 從環境變數讀取 API Key
 const getApiKey = () => {
-  // 嘗試讀取 VITE_ 開頭的變數 (適用於你的 Vite 專案)
   const envKey = import.meta.env.VITE_GOOGLE_API_KEY;
-  
   if (!envKey) {
      console.error("❌ 嚴重錯誤：找不到 VITE_GOOGLE_API_KEY，請檢查 .env 檔案");
-     // 回傳一個標記，讓後面可以拋出更具體的錯誤
      return "MISSING"; 
   }
   return envKey.trim();
 }
 
 export const getGeminiSuggestion = async (
-  // 這裡移除了 apiKey 參數，因為我們直接從環境變數讀取，這樣比較安全
   location: string,
   gender: Gender,
   style: Style,
@@ -33,19 +27,24 @@ export const getGeminiSuggestion = async (
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
   const fullTimeContext = `${dayLabel} ${timeOfDay}`;
 
+  // 為了讓 AI 更穩定，我們簡化 Prompt，並強調格式
   const prompt = `
-  你是一個頂尖的時尚造型師與氣象專家。請嚴格只回傳標準 JSON 格式，不要使用 Markdown 標記。
-  【使用者資料】
-  1. 地點：${location}
-  2. 時間：${fullTimeContext}
-  3. 性別：${genderStr}
-  4. 風格：${styleStr}
-  5. 色彩季型：${colorSeason}
-  【任務】
-  1. 分析天氣
-  2. 提供穿搭建議
-  3. 產生 3 組 visualPrompts (用於 AI 繪圖)
-  請回傳純 JSON 字串。
+  【角色】頂尖時尚造型師與氣象專家。
+  【任務】根據以下資料回傳 JSON：
+  - 地點：${location}
+  - 時間：${fullTimeContext}
+  - 使用者：${genderStr} / ${styleStr} / ${colorSeason}
+  
+  【必要欄位】
+  1. weather (天氣分析)
+  2. suggestion (穿搭建議)
+  3. items (推薦單品清單)
+  4. visualPrompts (3個用於生成圖片的英文提示詞)
+  
+  【嚴格規定】
+  - 只回傳 JSON。
+  - 不要使用 Markdown (不要寫 \`\`\`json)。
+  - 不要有任何解釋文字。
   `;
 
   const activeKey = getApiKey();
@@ -53,16 +52,19 @@ export const getGeminiSuggestion = async (
       throw new Error("系統設定錯誤：找不到 Google API Key，請檢查 .env 檔案。");
   }
 
-  // 🔥 建構正確的 API 網址
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${activeKey}`;
 
-  console.log(`🚀 正在請求 AI...`);
+  console.log(`🚀 正在請求 AI (Model: ${MODEL_NAME})...`);
 
   try {
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        // System Instruction: 從源頭要求 AI 輸出純 JSON
+        system_instruction: { 
+            parts: [{ text: "You are a strict API endpoint. Output ONLY valid JSON. Do not use Markdown formatting." }] 
+        },
         contents: [{ parts: [{ text: prompt }] }]
       })
     });
@@ -79,19 +81,32 @@ export const getGeminiSuggestion = async (
         throw new Error("AI 暫時無法提供建議 (安全性攔截或忙碌中)");
     }
 
-    const text = data.candidates[0].content?.parts?.[0]?.text || "";
+    let text = data.candidates[0].content?.parts?.[0]?.text || "";
     
-    // JSON 清洗：只抓取第一個 { 到最後一個 }
-    const jsonMatch = text.match(/\{[\s\S]*\}/); 
-    const cleanText = jsonMatch ? jsonMatch[0] : text;
+    console.log("📜 AI 原始回傳:", text); 
 
-    return JSON.parse(cleanText) as WeatherOutfitResponse;
+    // 🔥 強力清洗：移除所有 Markdown 標記與非 JSON 的雜訊
+    // 1. 移除 ``````
+    text = text.replace(/``````/g, "").trim();
+    
+    // 2. 只抓取最外層的大括號 { ... }
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+        text = text.substring(jsonStart, jsonEnd + 1);
+    } else {
+        throw new Error("AI 回傳的內容不包含有效的 JSON 結構");
+    }
+
+    return JSON.parse(text) as WeatherOutfitResponse;
 
   } catch (e: any) {
-    console.error("🛑 錯誤:", e);
-    // 如果是 JSON 解析失敗，給一個好懂的錯誤訊息
+    console.error("🛑 解析失敗:", e);
+    
     if (e instanceof SyntaxError) {
-        throw new Error("AI 回傳了無效的格式，請重試一次。");
+        console.error("JSON 解析錯誤，嘗試修復前的文字:", e.message);
+        throw new Error("AI 回傳了無效的格式，請再按一次「生成」試試看。");
     }
     throw e; 
   }
