@@ -13,6 +13,7 @@ export interface WeatherInfo {
   humidity: string;
   rainProb: string;
   description: string;
+  advice?: string; // 🔥 新增這一行 (加個問號代表可有可無，避免舊資料報錯)
   forecast: DailyForecast[];
 }
 
