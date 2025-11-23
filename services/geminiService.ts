@@ -10,12 +10,10 @@ const getApiKey = () => {
   return envKey.trim();
 }
 
-// 🔧 JSON 修復小幫手：專門處理 AI 缺括號、多逗號的問題
+// 🔧 JSON 修復小幫手
 function repairJson(jsonString: string): string {
     let fixed = jsonString.trim();
-    // 移除 Markdown
     fixed = fixed.replace(/``````/g, "");
-    // 移除可能的前綴廢話
     const firstBrace = fixed.indexOf('{');
     const lastBrace = fixed.lastIndexOf('}');
     if (firstBrace !== -1 && lastBrace !== -1) {
@@ -42,17 +40,39 @@ export const getGeminiSuggestion = async (
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式' : '運動';
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
 
-  // 📝 簡化後的 Prompt，減少 AI 困惑
+  // 🔥 關鍵修正：讓 Prompt 完全對應你的 types.ts 結構
+  // 我們給 AI 一個「範本」，叫它照著填空
   const prompt = `
-  分析 ${location} 在 ${dayLabel}${timeOfDay} 的天氣。
-  使用者：${genderStr}, 風格：${styleStr}, 色系：${colorSeason}。
+  分析地點：${location}，時間：${dayLabel}${timeOfDay}。
+  使用者：${genderStr}, 風格：${styleStr}, 色季：${colorSeason}。
   
-  請回傳一個 JSON 物件，包含以下欄位：
+  請嚴格依照以下 JSON 結構回傳，不要修改欄位名稱：
   {
-    "weather": { "temperature": "數值", "condition": "天氣狀況", "rainChance": "降雨機率", "humidity": "濕度", "wind": "風速", "uvIndex": "紫外線", "advice": "天氣建議" },
-    "suggestion": { "title": "穿搭標題", "description": "穿搭說明", "colorPalette": ["顏色1", "顏色2"] },
-    "items": [{ "category": "類別", "name": "單品名稱", "reason": "推薦理由" }],
-    "visualPrompts": ["英文提示詞1", "英文提示詞2", "英文提示詞3"]
+    "location": "${location}",
+    "weather": {
+      "location": "${location}",
+      "temperature": "攝氏溫度 (例如 25°C)",
+      "feelsLike": "體感溫度",
+      "humidity": "濕度",
+      "rainProb": "降雨機率",
+      "description": "天氣狀況描述",
+      "forecast": [
+        { "day": "今天", "condition": "晴", "high": "30°C", "low": "25°C", "rainProb": "10%" },
+        { "day": "明天", "condition": "多雲", "high": "28°C", "low": "24°C", "rainProb": "20%" },
+        { "day": "後天", "condition": "雨", "high": "26°C", "low": "23°C", "rainProb": "60%" }
+      ]
+    },
+    "outfit": {
+      "items": [
+        { "item": "上衣名稱", "color": "推薦顏色", "reason": "推薦理由", "icon": "tshirt" },
+        { "item": "下著名稱", "color": "推薦顏色", "reason": "推薦理由", "icon": "pants" },
+        { "item": "配件名稱", "color": "推薦顏色", "reason": "推薦理由", "icon": "scarf" }
+      ],
+      "tips": "整體的穿搭建議與風格描述",
+      "colorPalette": ["#HexCode1", "#HexCode2", "#HexCode3"],
+      "colorDescription": "配色靈感說明",
+      "visualPrompts": ["High quality fashion photography of...", "Cinematic shot of...", "Studio lighting..."]
+    }
   }
   `;
 
@@ -66,45 +86,38 @@ export const getGeminiSuggestion = async (
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        // 🔥 關鍵修正：開啟 JSON Mode (application/json)
-        // 這會強制 AI 輸出完美的 JSON，不會有廢話
         generationConfig: {
-            response_mime_type: "application/json"
+            response_mime_type: "application/json" // 強制 JSON 模式
         }
       })
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("API Error:", errorData);
-      throw new Error(`Google API 拒絕連線 (${response.status})`);
+      throw new Error(`API Error: ${errorData.error?.message || response.statusText}`);
     }
 
     const data = await response.json();
     
-    // 檢查是否被安全過濾
-    if (data.promptFeedback?.blockReason) {
-        throw new Error(`內容被 Google 攔截: ${data.promptFeedback.blockReason}`);
-    }
-
     if (!data.candidates || data.candidates.length === 0) {
-        throw new Error("AI 沒有回傳任何內容，請重試。");
+        throw new Error("AI 沒有回傳內容");
     }
 
     const rawText = data.candidates[0].content?.parts?.[0]?.text || "";
-    console.log("AI 回傳:", rawText); // F12 可以看到完整內容
+    console.log("AI Output:", rawText);
 
-    // 嘗試解析
-    try {
-        const cleanJson = repairJson(rawText);
-        return JSON.parse(cleanJson) as WeatherOutfitResponse;
-    } catch (parseError) {
-        console.error("JSON 解析失敗:", parseError);
-        throw new Error("AI 產生的格式有誤，請再試一次 (Parsing Error)");
+    const cleanJson = repairJson(rawText);
+    const parsedData = JSON.parse(cleanJson);
+
+    // 最後檢查：確認有沒有漏掉必要的 weather 或 outfit 欄位
+    if (!parsedData.weather || !parsedData.outfit) {
+        throw new Error("AI 回傳格式缺少必要欄位 (weather 或 outfit)");
     }
 
+    return parsedData as WeatherOutfitResponse;
+
   } catch (e: any) {
-    console.error("最終錯誤:", e);
-    throw e; // 拋出錯誤讓 App.tsx 處理 (顯示紅框框)
+    console.error("Service Error:", e);
+    throw e;
   }
 };
