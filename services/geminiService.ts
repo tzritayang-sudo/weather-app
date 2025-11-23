@@ -62,8 +62,10 @@ export const getGeminiSuggestion = async (
       // 清理可能多餘的符號
       const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
       return JSON.parse(cleanText) as WeatherOutfitResponse;
-  } catch (error) {
+} catch (error: any) {
       console.error("Gemini API Error:", error);
-      throw new Error("連線失敗，請稍後再試。");
+      // 把真正的錯誤秀出來
+      const rawError = error.message || JSON.stringify(error);
+      throw new Error(`錯誤代碼: ${rawError}`);
   }
 };
