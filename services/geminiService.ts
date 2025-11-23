@@ -1,6 +1,6 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// 🔥 先試試看標準的 1.5-flash (如果不行的話，請手動改成 "gemini-2.5-flash" 或 "gemini-pro")
+// 🔥 照您的要求，設定為 2.5 版本
 const MODEL_NAME = "gemini-2.5-flash"; 
 
 const getApiKey = (keyName: string) => {
@@ -55,8 +55,14 @@ async function fetchRealWeather(location: string): Promise<string> {
              searchLoc = `${location}, Taiwan`; 
         }
         
-        const res = await fetch(`https://wttr.in/${encodeURIComponent(searchLoc)}?format=j1`);
-        if (!res.ok) return ""; // API 失敗時優雅降級
+        // 增加 timeout 避免卡住
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3秒超時
+
+        const res = await fetch(`https://wttr.in/${encodeURIComponent(searchLoc)}?format=j1`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) return ""; 
         
         const data = await res.json();
         const current = data.current_condition?.[0];
@@ -64,7 +70,7 @@ async function fetchRealWeather(location: string): Promise<string> {
 
         const temp = current.temp_C || "25";
         const feelsLike = current.FeelsLikeC || temp;
-        const humidity = current.humidity || "70"; // 抓取濕度
+        const humidity = current.humidity || "70"; 
         const weatherDesc = current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value || "";
         const areaName = data.nearest_area?.[0]?.areaName?.[0]?.value || location;
         const rainProb = data.weather?.[0]?.hourly?.[0]?.chanceofrain || "0";
@@ -103,7 +109,6 @@ export const getGeminiSuggestion = async (
 
   const realWeather = await fetchRealWeather(location);
 
-  // 🔥 Prompt 包含濕度邏輯與圖示選擇
   const prompt = `
   角色：專業氣象色彩顧問。
   使用者：${genderStr}, 風格：${styleStr}。
