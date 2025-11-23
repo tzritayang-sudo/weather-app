@@ -1,11 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// 🔥 直接在這裡寫死鑰匙，這是最暴力的解法 🔥
-const HARDCODED_KEY = "AIzaSyAdO6hqF6O759LOwQMpffepbKDcCYcGUjI"; 
+// 🔥 萬能鑰匙：直接寫死在這裡，保證讀得到 🔥
+const FINAL_KEY = "AIzaSyAd06hqF60759LOwQMpffepbKDcCYcGUjI";
 
 export const getGeminiSuggestion = async (
-  apiKey: string, // 這裡雖然有傳參數，但我們下面直接無視它，用寫死的
+  apiKey: string, 
   location: string,
   gender: Gender,
   style: Style,
@@ -14,16 +14,24 @@ export const getGeminiSuggestion = async (
   timeOfDay: TimeOfDay
 ): Promise<WeatherOutfitResponse> => {
 
-  // 建立 AI 連線，直接用寫死的 Key
-  const genAI = new GoogleGenerativeAI(HARDCODED_KEY);
-  
-  // 設定模型
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  // 1. 不管外面傳什麼鑰匙進來，我們先檢查有沒有寫死的鑰匙
+  // 這樣就算 App.tsx 傳空值，這裡也能運作
+  const activeKey = FINAL_KEY;
 
+  if (!activeKey) {
+      throw new Error("請檢查程式碼中的 API Key 設定");
+  }
+
+  // 2. 建立連線
+  const genAI = new GoogleGenerativeAI(activeKey);
+  
+  // 3. 設定模型：改回最穩定的 'gemini-pro'
+  // 這樣就算工具包版本舊，也絕對能跑！
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+  // 4. 準備提示詞參數
   const genderStr = gender === Gender.Male ? '男士' : gender === Gender.Female ? '女士' : '中性';
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式上班/商務' : '運動健身';
-
-  // Resolve Target Day String
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
   const fullTimeContext = `${dayLabel} ${timeOfDay}`;
 
@@ -32,29 +40,30 @@ export const getGeminiSuggestion = async (
 
   【使用者資料】
   1. 地點：${location}。
-  2. **目標穿搭時間：${fullTimeContext}** (使用者要穿出門的時間)。
+  2. 目標時間：${fullTimeContext}。
   3. 性別：${genderStr}。
   4. 風格：${styleStr}。
   5. 色彩季型：${colorSeason}。
 
   【任務】
-  1. 分析 ${location} 的天氣與體感溫度。
-  2. **務必提供從「今天」開始的未來三天天氣預報 (今天、明天、後天)**。
-  3. 針對「目標穿搭時間」設計一套「主要推薦穿搭」並填入 JSON 的 items 欄位。
-  4. **關鍵任務**：請在 JSON 的 "visualPrompts" 欄位中，產生 **3 組截然不同** 的英文影像提示詞 (Prompts)，這將用於產生圖片：
-     - **Style 1 (Main Look)**：與 items 欄位完全一致的標準搭配。
-     - **Style 2 (Trendy)**：更時尚、大膽的變體。
-     - **Style 3 (Relaxed)**：另一種氛圍的搭配。
+  1. 分析該地點天氣。
+  2. 設計一套穿搭建議，填入 JSON 的 items 欄位。
+  3. 產生 3 組 visualPrompts (Style 1, Style 2, Style 3)。
 
-  請以 JSON 格式回傳，不要有 Markdown 標記。
+  請直接回傳 JSON 格式。
   `;
 
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
-  
-  // 清理 JSON 字串 (以防 AI 回傳了 markdown code block)
-  const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-
-  return JSON.parse(cleanText) as WeatherOutfitResponse;
+  // 5. 發送請求
+  try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      // 清理可能多餘的符號
+      const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanText) as WeatherOutfitResponse;
+  } catch (error) {
+      console.error("Gemini API Error:", error);
+      throw new Error("連線失敗，請稍後再試。");
+  }
 };
