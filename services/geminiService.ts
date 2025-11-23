@@ -58,13 +58,17 @@ async function fetchRealWeather(location: string): Promise<string> {
         const data = await res.json();
         const current = data.current_condition[0];
         const areaName = data.nearest_area?.[0]?.areaName?.[0]?.value || location;
+        const humidity = current.humidity; // 🔥 抓取濕度
+
         return `
         【真實天氣】
         - 地點: ${areaName}
-        - 氣溫: ${current.temp_C}°C (體感 ${current.FeelsLikeC}°C)
+        - 氣溫: ${current.temp_C}°C
+        - 體感: ${current.FeelsLikeC}°C
+        - 濕度: ${humidity}%  <-- 重要！
         - 天氣: ${current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value}
         - 降雨機率: ${data.weather?.[0]?.hourly?.[0]?.chanceofrain || 0}%
-        (請務必根據此數據生成 weather 欄位)
+        (請務必根據濕度調整建議，並將數值填入 weather.humidity)
         `;
     } catch (e) { return ""; }
 }
@@ -87,39 +91,37 @@ export const getGeminiSuggestion = async (
 
   const realWeather = await fetchRealWeather(location);
 
-  // 🔥 最終版 Prompt (加入圖示選擇清單)
+  // 🔥 Prompt 加入濕度穿搭邏輯
   const prompt = `
-  角色：專業色彩顧問。
+  角色：專業氣象色彩顧問。
   使用者：${genderStr}, 風格：${styleStr}。
   任務：針對「${colorSeason}」，在「${location} ${dayLabel}${timeOfDay}」提供穿搭。
   ${realWeather}
 
+  【濕度穿搭邏輯】
+  1. 濕度高 (>80%) 且熱：推薦亞麻、排汗材質，避免厚棉。
+  2. 濕度高 (>80%) 且冷：體感會更冷，需防風防水，建議洋蔥式穿法。
+  3. 乾燥：注意保濕，可選親膚棉質。
+
   【圖示選擇 (icon)】
-  請從以下清單為每個單品選擇最適合的圖示 key：
+  請從清單選擇最合適的 icon key：
   "t-shirt", "shirt", "sweater", "hoodie", "jacket", "coat", "pants", "shorts", "skirt", "dress", 
   "sneakers", "boots", "formal-shoes", "sandals", "bag", "umbrella", "hat", "scarf", "glasses", "watch"
 
-  【色彩規則：嚴格遵守 ${colorSeason}，避開禁忌色】
-  (此處省略色彩資料庫，因為你之前的版本已經很完整)
-
-  【回傳 JSON 格式】
+  【回傳 JSON】
   {
     "location": "...",
-    "weather": { ... },
+    "weather": {
+      "temperature": "...", "feelsLike": "...", "humidity": "85%", "rainProb": "...", "description": "...", "advice": "..."
+    },
     "outfit": {
       "items": [
-         { 
-           "item": "單品名 (例如：高腰棉麻寬褲)", 
-           "color": "色名 (例如：米白)", 
-           "reason": "...", 
-           "detail": "...", 
-           "icon": "pants" // <-- 請根據上方清單選擇最適合的圖示！
-         }
+         { "item": "單品", "color": "顏色", "reason": "...", "detail": "...", "icon": "t-shirt" }
       ],
       "tips": "...",
-      "colorPalette": ["色名1", "色名2"],
+      "colorPalette": ["色1", "色2"],
       "colorDescription": "...",
-      "visualPrompts": ["Color Item1", "Color Item2"]
+      "visualPrompts": ["Color Item"]
     },
     "generatedImages": []
   }
