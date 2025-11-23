@@ -1,7 +1,7 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
 // 🔥 改用最通用的 gemini-pro，這幾乎不可能 404
-const MODEL_NAME = "gemini-1.5-flash"; 
+const MODEL_NAME = "gemini-2.5-flash"; 
 
 const getApiKey = (keyName: string) => {
   const envKey = import.meta.env[keyName];
