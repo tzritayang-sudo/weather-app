@@ -1,7 +1,7 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// 🔥 鎖定最穩定的 1.5-flash (如果這還不行，請改回您"本來還可以"那時候用的模型名稱)
-const MODEL_NAME = "gemini-2.5-flash"; 
+// 🔥 改成最通用的舊版模型名稱 (這個應該就是你"本來還可以"的版本)
+const MODEL_NAME = "gemini-pro"; 
 
 const getApiKey = (keyName: string) => {
   const envKey = import.meta.env[keyName];
@@ -9,7 +9,6 @@ const getApiKey = (keyName: string) => {
   return envKey.trim();
 }
 
-// ... (保留 simplifyColorForSearch) ...
 function simplifyColorForSearch(query: string): string {
     const map: Record<string, string> = { "electric blue": "royal blue", "hot pink": "bright pink", "icy grey": "light grey", "pine green": "dark green", "emerald green": "dark green", "mustard": "yellow", "rust": "orange brown", "terracotta": "brown orange", "sage green": "light green", "oatmeal": "beige", "taupe": "brown grey", "mauve": "purple grey", "burgundy": "dark red", "teal": "blue green" };
     let simpleQuery = query.toLowerCase();
@@ -17,7 +16,6 @@ function simplifyColorForSearch(query: string): string {
     return simpleQuery;
 }
 
-// ... (保留 fetchPexelsImages) ...
 async function fetchPexelsImages(query: string): Promise<string[]> {
     const pexelsKey = getApiKey("VITE_PEXELS_API_KEY");
     if (!pexelsKey) return [];
@@ -41,7 +39,6 @@ async function fetchPexelsImages(query: string): Promise<string[]> {
     } catch (e) { return []; }
 }
 
-// ... (保留 repairJson) ...
 function repairJson(jsonString: string): string {
     let fixed = jsonString.trim();
     fixed = fixed.replace(/``````/g, "");
@@ -51,7 +48,6 @@ function repairJson(jsonString: string): string {
     return fixed;
 }
 
-// 🔥 簡化版 fetchRealWeather (移除可能會導致問題的 timeout/controller)
 async function fetchRealWeather(location: string): Promise<string> {
     try {
         let searchLoc = location;
@@ -66,15 +62,14 @@ async function fetchRealWeather(location: string): Promise<string> {
 
         const temp = current.temp_C || "25";
         const feelsLike = current.FeelsLikeC || temp;
-        const humidity = current.humidity || "70";
+        const humidity = current.humidity || "70"; // 濕度
         const weatherDesc = current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value || "";
         const areaName = data.nearest_area?.[0]?.areaName?.[0]?.value || location;
         const rainProb = data.weather?.[0]?.hourly?.[0]?.chanceofrain || "0";
 
         return `
-        【真實天氣】
+        【真實天氣數據】
         地點:${areaName}, 氣溫:${temp}°C, 體感:${feelsLike}°C, 濕度:${humidity}%, 天氣:${weatherDesc}, 降雨:${rainProb}%
-        (請務必填入 humidity)
         `;
     } catch (e) { return ""; }
 }
@@ -96,21 +91,20 @@ export const getGeminiSuggestion = async (
   
   const realWeather = await fetchRealWeather(location);
 
-  // 🔥 簡化版 Prompt：只保留最核心指令，避免 API 拒絕
+  // Prompt 保持不變 (功能都有)
   const prompt = `
-  角色：專業穿搭顧問。
+  角色：穿搭顧問。
   使用者：${genderStr}, 風格：${styleStr}。
   任務：針對「${colorSeason}」提供穿搭。
   ${realWeather}
 
-  【穿搭要求】
-  1. 若濕度>80%，建議透氣或防風材質。
-  2. **Icon 選擇**：請準確選擇單品對應的英文圖示 key，例如：
-     - 褲子 -> "pants"
-     - 裙子 -> "skirt"
-     - 外套 -> "jacket"
-     - 鞋子 -> "sneakers" 或 "boots"
-     - 包包 -> "bag"
+  【濕度邏輯】
+  若濕度>80%，推薦透氣或防水材質。
+
+  【Icon 選擇】
+  請從以下清單選擇 items[].icon：
+  "t-shirt", "shirt", "sweater", "hoodie", "jacket", "coat", "pants", "shorts", "skirt", "dress", 
+  "sneakers", "boots", "formal-shoes", "sandals", "bag", "umbrella", "hat", "scarf", "glasses", "watch"
 
   【回傳 JSON】
   {
@@ -131,6 +125,7 @@ export const getGeminiSuggestion = async (
   }
   `;
 
+  // 注意：gemini-pro 通常走 v1beta，但也可能走 v1，這裡先用 v1beta
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${googleKey}`;
   let parsedData: WeatherOutfitResponse;
 
@@ -144,7 +139,7 @@ export const getGeminiSuggestion = async (
       })
     });
 
-    if (!response.ok) throw new Error(`API Fail: ${response.status}`); // 這裡如果報錯，就是模型名稱不對
+    if (!response.ok) throw new Error(`API Fail: ${response.status}`);
 
     const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -152,7 +147,7 @@ export const getGeminiSuggestion = async (
     if (!parsedData.weather.advice) parsedData.weather.advice = `天氣${parsedData.weather.description}。`;
   } catch (e) { throw e; }
 
-  // ... (Pexels 圖片邏輯) ...
+  // Pexels 邏輯
   if (parsedData.outfit?.visualPrompts?.length > 0) {
       const [images1, images2] = await Promise.all([
           fetchPexelsImages(parsedData.outfit.visualPrompts[0]),
