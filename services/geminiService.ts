@@ -1,7 +1,7 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
 // 🔥 先試試看標準的 1.5-flash (如果不行的話，請手動改成 "gemini-2.5-flash" 或 "gemini-pro")
-const MODEL_NAME = "gemini-1.5-flash"; 
+const MODEL_NAME = "gemini-2.5-flash"; 
 
 const getApiKey = (keyName: string) => {
   const envKey = import.meta.env[keyName];
