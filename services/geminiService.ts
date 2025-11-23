@@ -18,7 +18,7 @@ export const getGeminiSuggestion = async (
   const genAI = new GoogleGenerativeAI(HARDCODED_KEY);
   
   // 設定模型
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
   const genderStr = gender === Gender.Male ? '男士' : gender === Gender.Female ? '女士' : '中性';
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式上班/商務' : '運動健身';
