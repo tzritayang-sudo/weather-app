@@ -1,16 +1,27 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// 🔥 設定正確的模型名稱
+// 🔥 模型名稱
 const MODEL_NAME = "gemini-2.5-flash"; 
 
 // 🎯 從環境變數讀取 API Key
 const getApiKey = () => {
   const envKey = import.meta.env.VITE_GOOGLE_API_KEY;
-  if (!envKey) {
-     console.error("❌ 嚴重錯誤：找不到 VITE_GOOGLE_API_KEY，請檢查 .env 檔案");
-     return "MISSING"; 
-  }
+  if (!envKey) return "MISSING"; 
   return envKey.trim();
+}
+
+// 🔧 JSON 修復小幫手：專門處理 AI 缺括號、多逗號的問題
+function repairJson(jsonString: string): string {
+    let fixed = jsonString.trim();
+    // 移除 Markdown
+    fixed = fixed.replace(/``````/g, "");
+    // 移除可能的前綴廢話
+    const firstBrace = fixed.indexOf('{');
+    const lastBrace = fixed.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+        fixed = fixed.substring(firstBrace, lastBrace + 1);
+    }
+    return fixed;
 }
 
 export const getGeminiSuggestion = async (
@@ -22,92 +33,78 @@ export const getGeminiSuggestion = async (
   timeOfDay: TimeOfDay
 ): Promise<WeatherOutfitResponse> => {
 
-  const genderStr = gender === Gender.Male ? '男士' : gender === Gender.Female ? '女士' : '中性';
-  const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式上班/商務' : '運動健身';
-  const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
-  const fullTimeContext = `${dayLabel} ${timeOfDay}`;
-
-  // 為了讓 AI 更穩定，我們簡化 Prompt，並強調格式
-  const prompt = `
-  【角色】頂尖時尚造型師與氣象專家。
-  【任務】根據以下資料回傳 JSON：
-  - 地點：${location}
-  - 時間：${fullTimeContext}
-  - 使用者：${genderStr} / ${styleStr} / ${colorSeason}
-  
-  【必要欄位】
-  1. weather (天氣分析)
-  2. suggestion (穿搭建議)
-  3. items (推薦單品清單)
-  4. visualPrompts (3個用於生成圖片的英文提示詞)
-  
-  【嚴格規定】
-  - 只回傳 JSON。
-  - 不要使用 Markdown (不要寫 \`\`\`json)。
-  - 不要有任何解釋文字。
-  `;
-
   const activeKey = getApiKey();
   if (activeKey === "MISSING") {
-      throw new Error("系統設定錯誤：找不到 Google API Key，請檢查 .env 檔案。");
+      throw new Error("系統錯誤：找不到 API Key，請檢查 .env 檔案。");
   }
+
+  const genderStr = gender === Gender.Male ? '男士' : gender === Gender.Female ? '女士' : '中性';
+  const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式' : '運動';
+  const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
+
+  // 📝 簡化後的 Prompt，減少 AI 困惑
+  const prompt = `
+  分析 ${location} 在 ${dayLabel}${timeOfDay} 的天氣。
+  使用者：${genderStr}, 風格：${styleStr}, 色系：${colorSeason}。
+  
+  請回傳一個 JSON 物件，包含以下欄位：
+  {
+    "weather": { "temperature": "數值", "condition": "天氣狀況", "rainChance": "降雨機率", "humidity": "濕度", "wind": "風速", "uvIndex": "紫外線", "advice": "天氣建議" },
+    "suggestion": { "title": "穿搭標題", "description": "穿搭說明", "colorPalette": ["顏色1", "顏色2"] },
+    "items": [{ "category": "類別", "name": "單品名稱", "reason": "推薦理由" }],
+    "visualPrompts": ["英文提示詞1", "英文提示詞2", "英文提示詞3"]
+  }
+  `;
 
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${activeKey}`;
 
-  console.log(`🚀 正在請求 AI (Model: ${MODEL_NAME})...`);
+  console.log("🚀 發送請求中...");
 
   try {
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        // System Instruction: 從源頭要求 AI 輸出純 JSON
-        system_instruction: { 
-            parts: [{ text: "You are a strict API endpoint. Output ONLY valid JSON. Do not use Markdown formatting." }] 
-        },
-        contents: [{ parts: [{ text: prompt }] }]
+        contents: [{ parts: [{ text: prompt }] }],
+        // 🔥 關鍵修正：開啟 JSON Mode (application/json)
+        // 這會強制 AI 輸出完美的 JSON，不會有廢話
+        generationConfig: {
+            response_mime_type: "application/json"
+        }
       })
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("❌ Google API 錯誤:", errorData);
-      throw new Error(`API 請求失敗 (${response.status}): ${errorData.error?.message || "未知錯誤"}`);
+      console.error("API Error:", errorData);
+      throw new Error(`Google API 拒絕連線 (${response.status})`);
     }
 
     const data = await response.json();
     
+    // 檢查是否被安全過濾
+    if (data.promptFeedback?.blockReason) {
+        throw new Error(`內容被 Google 攔截: ${data.promptFeedback.blockReason}`);
+    }
+
     if (!data.candidates || data.candidates.length === 0) {
-        throw new Error("AI 暫時無法提供建議 (安全性攔截或忙碌中)");
+        throw new Error("AI 沒有回傳任何內容，請重試。");
     }
 
-    let text = data.candidates[0].content?.parts?.[0]?.text || "";
-    
-    console.log("📜 AI 原始回傳:", text); 
+    const rawText = data.candidates[0].content?.parts?.[0]?.text || "";
+    console.log("AI 回傳:", rawText); // F12 可以看到完整內容
 
-    // 🔥 強力清洗：移除所有 Markdown 標記與非 JSON 的雜訊
-    // 1. 移除 ``````
-    text = text.replace(/``````/g, "").trim();
-    
-    // 2. 只抓取最外層的大括號 { ... }
-    const jsonStart = text.indexOf('{');
-    const jsonEnd = text.lastIndexOf('}');
-    
-    if (jsonStart !== -1 && jsonEnd !== -1) {
-        text = text.substring(jsonStart, jsonEnd + 1);
-    } else {
-        throw new Error("AI 回傳的內容不包含有效的 JSON 結構");
+    // 嘗試解析
+    try {
+        const cleanJson = repairJson(rawText);
+        return JSON.parse(cleanJson) as WeatherOutfitResponse;
+    } catch (parseError) {
+        console.error("JSON 解析失敗:", parseError);
+        throw new Error("AI 產生的格式有誤，請再試一次 (Parsing Error)");
     }
-
-    return JSON.parse(text) as WeatherOutfitResponse;
 
   } catch (e: any) {
-    console.error("🛑 解析失敗:", e);
-    
-    if (e instanceof SyntaxError) {
-        console.error("JSON 解析錯誤，嘗試修復前的文字:", e.message);
-        throw new Error("AI 回傳了無效的格式，請再按一次「生成」試試看。");
-    }
-    throw e; 
+    console.error("最終錯誤:", e);
+    throw e; // 拋出錯誤讓 App.tsx 處理 (顯示紅框框)
   }
 };
