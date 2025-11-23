@@ -1,17 +1,40 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// 注意：如果你沒有安裝 @google/generative-ai，請執行 npm install @google/generative-ai
-// 這裡我們改回用 fetch 原生呼叫，這樣你就不需要煩惱 SDK 版本問題，保證能跑
+// 模型名稱
 const MODEL_NAME = "gemini-2.5-flash"; 
 
-const getApiKey = () => {
-  // 🔥 修正 1: 改回 Vite 專用的環境變數寫法
-  const envKey = import.meta.env.VITE_GOOGLE_API_KEY;
-  if (!envKey) return "MISSING"; 
+const getApiKey = (keyName: string) => {
+  const envKey = import.meta.env[keyName];
+  if (!envKey) return null;
   return envKey.trim();
 }
 
-// JSON 清洗工具
+// Pexels 搜尋函式
+async function fetchPexelsImages(query: string): Promise<string[]> {
+    const pexelsKey = getApiKey("VITE_PEXELS_API_KEY");
+    if (!pexelsKey) {
+        console.warn("⚠️ 未設定 VITE_PEXELS_API_KEY，跳過圖片搜尋");
+        return [];
+    }
+
+    try {
+        // 搜尋 Pexels，限制找 3 張圖，直式構圖 (portrait) 比較適合手機看
+        const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3&orientation=portrait`;
+        const res = await fetch(url, {
+            headers: { Authorization: pexelsKey }
+        });
+        
+        if (!res.ok) return [];
+        
+        const data = await res.json();
+        // 回傳圖片網址 (src.medium 比較省流量)
+        return data.photos.map((photo: any) => photo.src.large2x || photo.src.medium);
+    } catch (e) {
+        console.error("Pexels 搜尋失敗:", e);
+        return [];
+    }
+}
+
 function repairJson(jsonString: string): string {
     let fixed = jsonString.trim();
     fixed = fixed.replace(/``````/g, "");
@@ -32,72 +55,49 @@ export const getGeminiSuggestion = async (
   timeOfDay: TimeOfDay
 ): Promise<WeatherOutfitResponse> => {
 
-  const activeKey = getApiKey();
-  if (activeKey === "MISSING") {
-      throw new Error("系統錯誤：找不到 VITE_GOOGLE_API_KEY，請檢查 .env 檔案");
-  }
+  const googleKey = getApiKey("VITE_GOOGLE_API_KEY");
+  if (!googleKey) throw new Error("系統錯誤：找不到 VITE_GOOGLE_API_KEY");
 
   const genderStr = gender === Gender.Male ? '男士' : gender === Gender.Female ? '女士' : '中性';
-  const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式上班/商務' : '運動健身';
+  const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式' : '運動';
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
-  const fullTimeContext = `${dayLabel} ${timeOfDay}`;
 
-  // 🔥 這是你剛剛貼的很棒的 Prompt，我原封不動保留
   const prompt = `
-    你是一個頂尖的時尚造型師與氣象專家。
-    
-    【使用者資料】
-    1. 地點：${location}。
-    2. **目標穿搭時間：${fullTimeContext}**。
-    3. 性別：${genderStr}。
-    4. 風格：${styleStr}。
-    5. 色彩季型：${colorSeason}。
-
-    【任務】
-    1. 分析天氣，務必提供今天、明天、後天三日預報。
-    2. 針對目標時間提供穿搭建議 (items)。
-    3. 提供 3 組不同風格的視覺提示詞 (visualPrompts)。
-
-    【輸出格式】
-    請回傳純 JSON，不要 Markdown：
-    {
+  角色：時尚造型師。
+  任務：針對 ${location} ${dayLabel}${timeOfDay} 的天氣，為 ${genderStr} (${styleStr}, ${colorSeason}) 提供穿搭。
+  
+  請嚴格依照此 JSON 結構回傳：
+  {
+    "location": "${location}",
+    "weather": {
       "location": "${location}",
-      "weather": {
-        "location": "${location}",
-        "temperature": "溫度",
-        "feelsLike": "體感",
-        "humidity": "濕度",
-        "rainProb": "機率",
-        "description": "天氣簡述",
-        "forecast": [
-          { "day": "今天", "condition": "天氣", "high": "高溫", "low": "低溫", "rainProb": "機率" },
-          { "day": "明天", "condition": "天氣", "high": "高溫", "low": "低溫", "rainProb": "機率" },
-          { "day": "後天", "condition": "天氣", "high": "高溫", "low": "低溫", "rainProb": "機率" }
-        ]
-      },
-      "outfit": {
-        "items": [
-          { 
-            "item": "單品名", 
-            "color": "色", 
-            "reason": "理由", 
-            "detail": "細節", 
-            "icon": "請選其一: [tshirt, pants, jacket, shoes, accessory, bag, hat]" 
-          }
-        ],
-        "tips": "建議",
-        "colorPalette": ["#Hex1", "#Hex2", "#Hex3"],
-        "colorDescription": "配色說明",
-        "visualPrompts": ["Look 1...", "Look 2...", "Look 3..."]
-      },
-      "generatedImages": []
-    }
+      "temperature": "溫度", "feelsLike": "體感", "humidity": "濕度", "rainProb": "降雨率", "description": "天氣簡述",
+      "forecast": [
+         { "day": "今天", "condition": "天氣", "high": "高", "low": "低", "rainProb": "率" },
+         { "day": "明天", "condition": "天氣", "high": "高", "low": "低", "rainProb": "率" },
+         { "day": "後天", "condition": "天氣", "high": "高", "low": "低", "rainProb": "率" }
+      ]
+    },
+    "outfit": {
+      "items": [
+         { "item": "單品", "color": "色", "reason": "理由", "detail": "細節", "icon": "tshirt" }
+      ],
+      "tips": "建議",
+      "colorPalette": ["#Hex1", "#Hex2", "#Hex3"],
+      "colorDescription": "配色說明",
+      // 關鍵：請提供 3 個適合在圖庫搜尋的英文關鍵字
+      "visualPrompts": [
+         "Korean street fashion winter female coat", 
+         "Minimalist beige sweater outfit men",
+         "Casual denim look summer"
+      ]
+    },
+    "generatedImages": [] 
+  }
   `;
 
-  // 1. 呼叫 Gemini 產生文字建議 (JSON)
-  console.log("🚀 正在生成文字建議...");
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${activeKey}`;
-  
+  // 1. 文字生成
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${googleKey}`;
   let parsedData: WeatherOutfitResponse;
 
   try {
@@ -110,45 +110,30 @@ export const getGeminiSuggestion = async (
       })
     });
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(`Text API Error: ${err.error?.message || response.statusText}`);
-    }
+    if (!response.ok) throw new Error("Google API 連線失敗");
 
     const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    if (!rawText) throw new Error("AI 無回應");
-
-    const cleanJson = repairJson(rawText);
-    parsedData = JSON.parse(cleanJson);
+    parsedData = JSON.parse(repairJson(rawText));
 
   } catch (e) {
-    console.error("文字生成失敗:", e);
+    console.error("AI 文字生成失敗:", e);
     throw e;
   }
 
-  // 2. 嘗試生成圖片 (可選功能)
-  // 🔥 注意：免費 API Key 通常無法使用 gemini-2.5-flash-image
-  // 為了避免整個程式掛掉，我們把這段包在 try-catch 裡，失敗就算了
-  try {
-      console.log("🎨 嘗試生成圖片 (若 API 不支援將跳過)...");
+  // 2. 圖片搜尋 (自動接上 Pexels)
+  if (parsedData.outfit?.visualPrompts?.length > 0) {
+      console.log("🔍 正在搜尋圖片:", parsedData.outfit.visualPrompts[0]);
+      // 拿第一個最精準的 Prompt 去找圖
+      const images = await fetchPexelsImages(parsedData.outfit.visualPrompts[0]);
       
-      // 如果你的 Key 不支援生圖，這裡會自動失敗並跳過，不會讓畫面變白
-      // 目前大部分免費 Key 都不支援 imagen，所以我們暫時不做這段，以免你一直看到錯誤
-      // 如果你確定你的 Key 有權限，可以把下面註解打開
-      
-      /* 
-      const imagePrompt = parsedData.outfit.visualPrompts[0] || `Fashion photo of ${genderStr} in ${location}`;
-      const imgApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${activeKey}`; // 注意模型名稱
-      // ... 生圖邏輯 ...
-      */
-      
-      // 目前我們先回傳空陣列，確保文字功能正常
-      parsedData.generatedImages = [];
-
-  } catch (imgError) {
-      console.warn("圖片生成失敗 (可能是權限問題):", imgError);
-      parsedData.generatedImages = []; // 失敗也沒關係，至少文字有出來
+      // 如果第一組關鍵字找不到，試試看第二組
+      if (images.length === 0 && parsedData.outfit.visualPrompts[1]) {
+          const images2 = await fetchPexelsImages(parsedData.outfit.visualPrompts[1]);
+          parsedData.generatedImages = images2;
+      } else {
+          parsedData.generatedImages = images;
+      }
   }
 
   return parsedData;
