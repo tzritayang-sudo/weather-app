@@ -18,16 +18,20 @@ async function fetchPexelsImages(query: string): Promise<string[]> {
     }
 
     try {
-        // 搜尋 Pexels，限制找 3 張圖，直式構圖 (portrait) 比較適合手機看
+        // 我們把關鍵字稍微簡化，只取前幾個重要的字，避免搜尋字串太長導致 Pexels 找不到
+        // 例如 "Bright Royal Blue Coat Street Style..." 這樣比較容易中
         const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3&orientation=portrait`;
-        const res = await fetch(url, {
-            headers: { Authorization: pexelsKey }
-        });
         
+        const res = await fetch(url, { headers: { Authorization: pexelsKey } });
         if (!res.ok) return [];
         
         const data = await res.json();
-        // 回傳圖片網址 (src.medium 比較省流量)
+        
+        if (data.photos.length === 0) {
+            console.log(`關鍵字 "${query}" 找不到圖，嘗試備案...`);
+            return [];
+        }
+
         return data.photos.map((photo: any) => photo.src.large2x || photo.src.medium);
     } catch (e) {
         console.error("Pexels 搜尋失敗:", e);
@@ -62,35 +66,43 @@ export const getGeminiSuggestion = async (
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式' : '運動';
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
 
+  // 🔥 這裡做了重要修改：強迫 AI 把顏色寫進搜尋關鍵字
   const prompt = `
   角色：時尚造型師。
-  任務：針對 ${location} ${dayLabel}${timeOfDay} 的天氣，為 ${genderStr} (${styleStr}, ${colorSeason}) 提供穿搭。
+  使用者：${genderStr}, 風格：${styleStr}, 色系：${colorSeason}。
+  情境：${location} ${dayLabel}${timeOfDay}。
   
-  請嚴格依照此 JSON 結構回傳：
+  任務：請回傳 JSON 格式的穿搭建議。
+
+  【圖片搜尋關鍵字特別指令】
+  在產生 "visualPrompts" 時，因為是用於圖庫搜尋，請務必包含 **具體的顏色名稱** (Specific Color Name) 與 **單品名稱**。
+  
+  舉例來說：
+  - 如果是 Bright Winter，不要只寫 "Winter Coat"，要寫 "Royal Blue Winter Coat" 或 "Fuchsia Pink Sweater"。
+  - 如果是 Soft Autumn，要寫 "Sage Green Cardigan" 或 "Terracotta Dress"。
+  - 關鍵字結構建議："[Color] [Item] [Style] fashion"
+
+  請回傳以下 JSON 結構：
   {
     "location": "${location}",
     "weather": {
       "location": "${location}",
-      "temperature": "溫度", "feelsLike": "體感", "humidity": "濕度", "rainProb": "降雨率", "description": "天氣簡述",
+      "temperature": "溫度", "feelsLike": "體感", "humidity": "濕度", "rainProb": "機率", "description": "簡述",
       "forecast": [
-         { "day": "今天", "condition": "天氣", "high": "高", "low": "低", "rainProb": "率" },
-         { "day": "明天", "condition": "天氣", "high": "高", "low": "低", "rainProb": "率" },
-         { "day": "後天", "condition": "天氣", "high": "高", "low": "低", "rainProb": "率" }
+         { "day": "今天", "condition": "...", "high": "...", "low": "...", "rainProb": "..." },
+         { "day": "明天", "condition": "...", "high": "...", "low": "...", "rainProb": "..." },
+         { "day": "後天", "condition": "...", "high": "...", "low": "...", "rainProb": "..." }
       ]
     },
     "outfit": {
       "items": [
-         { "item": "單品", "color": "色", "reason": "理由", "detail": "細節", "icon": "tshirt" }
+         { "item": "單品名", "color": "顏色", "reason": "...", "detail": "...", "icon": "tshirt" }
       ],
-      "tips": "建議",
+      "tips": "...",
       "colorPalette": ["#Hex1", "#Hex2", "#Hex3"],
-      "colorDescription": "配色說明",
-      // 關鍵：請提供 3 個適合在圖庫搜尋的英文關鍵字
-      "visualPrompts": [
-         "Korean street fashion winter female coat", 
-         "Minimalist beige sweater outfit men",
-         "Casual denim look summer"
-      ]
+      "colorDescription": "...",
+      // 這裡 AI 會根據上面的指令，產生帶有顏色的關鍵字
+      "visualPrompts": ["Crucial Color Item Style...", "Crucial Color Item Style...", "Crucial Color Item Style..."]
     },
     "generatedImages": [] 
   }
@@ -121,19 +133,19 @@ export const getGeminiSuggestion = async (
     throw e;
   }
 
-  // 2. 圖片搜尋 (自動接上 Pexels)
+  // 2. 圖片搜尋 (增強版)
   if (parsedData.outfit?.visualPrompts?.length > 0) {
-      console.log("🔍 正在搜尋圖片:", parsedData.outfit.visualPrompts[0]);
-      // 拿第一個最精準的 Prompt 去找圖
-      const images = await fetchPexelsImages(parsedData.outfit.visualPrompts[0]);
+      // 我們一次拿三個關鍵字去搜，增加命中率
+      // 優先搜尋第一個關鍵字 (通常是最精準的)
+      let images = await fetchPexelsImages(parsedData.outfit.visualPrompts[0]);
       
-      // 如果第一組關鍵字找不到，試試看第二組
+      // 如果第一個關鍵字找不到圖 (可能是顏色太冷門)，就用備用的關鍵字
       if (images.length === 0 && parsedData.outfit.visualPrompts[1]) {
-          const images2 = await fetchPexelsImages(parsedData.outfit.visualPrompts[1]);
-          parsedData.generatedImages = images2;
-      } else {
-          parsedData.generatedImages = images;
+          console.log("第一組關鍵字無結果，嘗試第二組...");
+          images = await fetchPexelsImages(parsedData.outfit.visualPrompts[1]);
       }
+      
+      parsedData.generatedImages = images;
   }
 
   return parsedData;
