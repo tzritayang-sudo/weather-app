@@ -1,6 +1,5 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// 模型名稱
 const MODEL_NAME = "gemini-2.5-flash"; 
 
 const getApiKey = (keyName: string) => {
@@ -9,34 +8,25 @@ const getApiKey = (keyName: string) => {
   return envKey.trim();
 }
 
-// Pexels 搜尋函式
+// Pexels 搜尋 (保持隨機性)
 async function fetchPexelsImages(query: string): Promise<string[]> {
     const pexelsKey = getApiKey("VITE_PEXELS_API_KEY");
-    if (!pexelsKey) {
-        console.warn("⚠️ 未設定 VITE_PEXELS_API_KEY，跳過圖片搜尋");
-        return [];
-    }
+    if (!pexelsKey) return [];
 
     try {
-        // 我們把關鍵字稍微簡化，只取前幾個重要的字，避免搜尋字串太長導致 Pexels 找不到
-        // 例如 "Bright Royal Blue Coat Street Style..." 這樣比較容易中
-        const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3&orientation=portrait`;
-        
+        const randomPage = Math.floor(Math.random() * 5) + 1; // 增加隨機範圍到 5 頁
+        const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=3&page=${randomPage}&orientation=portrait`;
         const res = await fetch(url, { headers: { Authorization: pexelsKey } });
         if (!res.ok) return [];
-        
         const data = await res.json();
         
-        if (data.photos.length === 0) {
-            console.log(`關鍵字 "${query}" 找不到圖，嘗試備案...`);
-            return [];
+        // 找不到就縮短關鍵字重試
+        if (data.photos.length === 0 && query.includes(" ")) {
+            const shorter = query.split(" ").slice(1).join(" "); // 試著去掉第一個字(通常是顏色形容詞)
+            return fetchPexelsImages(shorter);
         }
-
         return data.photos.map((photo: any) => photo.src.large2x || photo.src.medium);
-    } catch (e) {
-        console.error("Pexels 搜尋失敗:", e);
-        return [];
-    }
+    } catch (e) { return []; }
 }
 
 function repairJson(jsonString: string): string {
@@ -66,23 +56,42 @@ export const getGeminiSuggestion = async (
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式' : '運動';
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
 
-  // 🔥 這裡做了重要修改：強迫 AI 把顏色寫進搜尋關鍵字
+  // 🔥 12 色彩季型詳細定義庫 (Embed Knowledge Base)
+  // 這裡包含了每個季型的核心色、強調色與避雷區，讓 AI 選擇更精準
   const prompt = `
-  角色：時尚造型師。
-  使用者：${genderStr}, 風格：${styleStr}, 色系：${colorSeason}。
-  情境：${location} ${dayLabel}${timeOfDay}。
-  
-  任務：請回傳 JSON 格式的穿搭建議。
+  角色：頂尖色彩形象顧問。
+  使用者：${genderStr}, 風格：${styleStr}。
+  **核心任務：針對「${colorSeason}」色彩季型，在「${location} ${dayLabel}${timeOfDay}」的天氣下提供穿搭。**
 
-  【圖片搜尋關鍵字特別指令】
-  在產生 "visualPrompts" 時，因為是用於圖庫搜尋，請務必包含 **具體的顏色名稱** (Specific Color Name) 與 **單品名稱**。
+  【色彩資料庫：請嚴格從下方清單挑選對應 ${colorSeason} 的顏色】
   
-  舉例來說：
-  - 如果是 Bright Winter，不要只寫 "Winter Coat"，要寫 "Royal Blue Winter Coat" 或 "Fuchsia Pink Sweater"。
-  - 如果是 Soft Autumn，要寫 "Sage Green Cardigan" 或 "Terracotta Dress"。
-  - 關鍵字結構建議："[Color] [Item] [Style] fashion"
+  ❄️ **WINTER (冬 - 冷/艷/深)**
+  - **Bright Winter (淨冬)**: Electric Blue, Hot Pink, Lemon Yellow, Icy Grey, Pure White, Black, Emerald Green, Royal Purple. (高對比、鮮豔)
+  - **True Winter (冷冬)**: Holly Berry Red, Pine Green, Sapphire Blue, Charcoal, White, Black, Cool Grey, Plum. (正冷色)
+  - **Dark Winter (深冬)**: Deep Teal, Burgundy, Midnight Blue, Dark Chocolate (Cool), Black, Charcoal, Deep Plum. (深沉濃郁)
 
-  請回傳以下 JSON 結構：
+  🍂 **AUTUMN (秋 - 暖/柔/深)**
+  - **Soft Autumn (柔秋)**: Sage Green, Dusty Pink, Oatmeal, Khaki, Warm Grey, Salmon, Olive, Butter Yellow. (低飽和、霧面)
+  - **True Autumn (暖秋)**: Mustard, Rust, Olive Green, Tomato Red, Golden Brown, Teal, Camel, Cream. (正暖色、大地色)
+  - **Dark Autumn (深秋)**: Dark Olive, Terracotta, Dark Chocolate, Deep Forest Green, Burnt Orange, Maroon, Gold. (深沉溫暖)
+
+  ☀️ **SPRING (春 - 暖/亮/清)**
+  - **Bright Spring (淨春)**: Bright Coral, Turquoise, Lime Green, Bright Yellow, Poppy Red, Warm Grey, Cream. (高彩度暖色)
+  - **True Spring (暖春)**: Golden Yellow, Peach, Salmon, Grass Green, Aqua, Camel, Ivory. (正暖亮色)
+  - **Light Spring (淺春)**: Pale Peach, Mint Green, Pale Yellow, Light Aqua, Ivory, Beige, Light Coral. (粉嫩暖色)
+
+  🌊 **SUMMER (夏 - 冷/柔/淺)**
+  - **Light Summer (淺夏)**: Powder Blue, Pale Pink, Lavender, Light Grey, Off-White, Mint, Sky Blue. (粉嫩冷色)
+  - **True Summer (冷夏)**: Raspberry, Soft Blue, Rose Pink, Grey Blue, Slate Grey, Cocoa (Cool), Soft White. (正冷柔色)
+  - **Soft Summer (柔夏)**: Mauve, Dusty Blue, Grey Green, Charcoal Blue, Taupe, Soft White, Rose Brown. (帶灰調冷色)
+
+  【生成規則】
+  1. **Visual Prompts (關鍵)**: 生成搜尋關鍵字時，必須使用上述資料庫中的 **"具體色名" + "單品"**。
+     - ✅ 正確: "Sage Green Sweater" (柔秋), "Electric Blue Coat" (淨冬)
+     - ❌ 錯誤: "Green Sweater", "Blue Coat" (太籠統，搜不到好圖)
+  2. **Items**: 推薦單品時，請描述該顏色的具體名稱 (例如寫「鼠尾草綠」而不是「綠色」)。
+
+  請回傳 JSON:
   {
     "location": "${location}",
     "weather": {
@@ -96,19 +105,17 @@ export const getGeminiSuggestion = async (
     },
     "outfit": {
       "items": [
-         { "item": "單品名", "color": "顏色", "reason": "...", "detail": "...", "icon": "tshirt" }
+         { "item": "單品名", "color": "精確色名", "reason": "...", "detail": "...", "icon": "tshirt" }
       ],
       "tips": "...",
       "colorPalette": ["#Hex1", "#Hex2", "#Hex3"],
       "colorDescription": "...",
-      // 這裡 AI 會根據上面的指令，產生帶有顏色的關鍵字
-      "visualPrompts": ["Crucial Color Item Style...", "Crucial Color Item Style...", "Crucial Color Item Style..."]
+      "visualPrompts": ["Specific Color Item", "Specific Color Item", "Specific Color Item"]
     },
     "generatedImages": [] 
   }
   `;
 
-  // 1. 文字生成
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${googleKey}`;
   let parsedData: WeatherOutfitResponse;
 
@@ -122,30 +129,30 @@ export const getGeminiSuggestion = async (
       })
     });
 
-    if (!response.ok) throw new Error("Google API 連線失敗");
-
+    if (!response.ok) throw new Error("API Fail");
     const data = await response.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     parsedData = JSON.parse(repairJson(rawText));
+  } catch (e) { throw e; }
 
-  } catch (e) {
-    console.error("AI 文字生成失敗:", e);
-    throw e;
-  }
-
-  // 2. 圖片搜尋 (增強版)
+  // 搜尋圖片
   if (parsedData.outfit?.visualPrompts?.length > 0) {
-      // 我們一次拿三個關鍵字去搜，增加命中率
-      // 優先搜尋第一個關鍵字 (通常是最精準的)
-      let images = await fetchPexelsImages(parsedData.outfit.visualPrompts[0]);
+      const prompt1 = parsedData.outfit.visualPrompts[0]; 
+      const prompt2 = parsedData.outfit.visualPrompts[1]; 
       
-      // 如果第一個關鍵字找不到圖 (可能是顏色太冷門)，就用備用的關鍵字
-      if (images.length === 0 && parsedData.outfit.visualPrompts[1]) {
-          console.log("第一組關鍵字無結果，嘗試第二組...");
-          images = await fetchPexelsImages(parsedData.outfit.visualPrompts[1]);
+      // 同時搜尋兩個關鍵字，確保畫面豐富
+      const [images1, images2] = await Promise.all([
+          fetchPexelsImages(prompt1),
+          fetchPexelsImages(prompt2)
+      ]);
+      
+      parsedData.generatedImages = [...images1.slice(0, 2), ...images2.slice(0, 1)];
+      
+      // 如果沒圖，用更寬泛的關鍵字補救 (例如只搜顏色)
+      if (parsedData.generatedImages.length === 0) {
+           const backupColor = parsedData.outfit.items[0].color; // 拿第一件單品的顏色
+           parsedData.generatedImages = await fetchPexelsImages(`${backupColor} fashion`);
       }
-      
-      parsedData.generatedImages = images;
   }
 
   return parsedData;
