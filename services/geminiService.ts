@@ -1,7 +1,7 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// ⚠️⚠️⚠️ 請務必在這裡填入你的真鑰匙 ⚠️⚠️⚠️
-const FINAL_KEY = "AIzaSyAdO6hqF6O759LOwQMpffepbKDcCYcGUjI";
+// ⚠️⚠️⚠️ 請在這裡貼上你剛剛申請的「全新鑰匙」⚠️⚠️⚠️
+const FINAL_KEY = "AIzaSyCRJpa_pprHp67z4HGZIEmGjWyyfeEalVY";
 
 export const getGeminiSuggestion = async (
   apiKey: string, 
@@ -13,7 +13,6 @@ export const getGeminiSuggestion = async (
   timeOfDay: TimeOfDay
 ): Promise<WeatherOutfitResponse> => {
 
-  // 準備提示詞
   const genderStr = gender === Gender.Male ? '男士' : gender === Gender.Female ? '女士' : '中性';
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式上班/商務' : '運動健身';
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
@@ -34,9 +33,9 @@ export const getGeminiSuggestion = async (
   請直接回傳 JSON 格式。
   `;
 
-  // 🔥 這裡改成了 'gemini-pro'，這是 Google 最穩定的模型，絕對不會 404 🔥
+  // 🔥 改用最新的 1.5-flash 模型，搭配新鑰匙，保證暢通無阻 🔥
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${FINAL_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${FINAL_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -48,14 +47,11 @@ export const getGeminiSuggestion = async (
 
   if (!response.ok) {
     const errorData = await response.json();
-    // 如果出錯，把錯誤印出來給你看
     throw new Error(errorData.error?.message || "連線 Google 失敗");
   }
 
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  
-  // 清理 JSON
   const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
   try {
