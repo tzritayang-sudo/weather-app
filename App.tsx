@@ -1,9 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react';
+// 檔案位置: src/App.tsx
+
+import React, { useState, useCallback } from 'react';
 import { getGeminiSuggestion } from './services/geminiService';
 import ResultDisplay from './components/ResultDisplay';
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from './types';
-import { RefreshIcon, UserIcon, BriefcaseIcon, CoffeeIcon, ActivityIcon, SearchIcon, ClockIcon, SettingsIcon, KeyIcon, LocationIcon } from './components/Icons';
+import { RefreshIcon, UserIcon, BriefcaseIcon, CoffeeIcon, ActivityIcon, ClockIcon, LocationIcon } from './components/Icons';
 
+// --- 簡單的按鈕元件 ---
 interface SelectorButtonProps {
   active: boolean;
   onClick: () => void;
@@ -34,83 +37,61 @@ const SelectorButton: React.FC<SelectorButtonProps> = ({
 
 const PRESET_LOCATIONS = ["泰山", "汐止", "雙北通勤"];
 
-// --- 這裡是你的金鑰，我已經幫你填進去了 ---
-const HARDCODED_KEY = "AIzaSyAdO6hqF6O759LOwQMpffepbKDcCYcGUjI";
-
 const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<WeatherOutfitResponse | null>(null);
   
-  // API Key State - 直接使用寫死的金鑰
-  const [apiKey, setApiKey] = useState<string>(HARDCODED_KEY);
-  const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [tempKey, setTempKey] = useState<string>('');
-  const [isUsingEnvKey, setIsUsingEnvKey] = useState<boolean>(true); // 強制設為 true，隱藏設定按鈕
-
-  // Personalization State
+  // --- 使用者偏好設定 ---
   const [location, setLocation] = useState<string>("雙北通勤");
   const [gender, setGender] = useState<Gender>(Gender.Female);
   const [style, setStyle] = useState<Style>(Style.Casual);
   const [colorSeason, setColorSeason] = useState<ColorSeason>(ColorSeason.BrightWinter);
   
-  // Time Context State
+  // --- 時間設定 ---
   const [targetDay, setTargetDay] = useState<TargetDay>(TargetDay.Today);
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>(TimeOfDay.Morning);
 
-  // Load API Key on Mount
-  useEffect(() => {
-    // 強制設定金鑰
-    setApiKey(HARDCODED_KEY);
-    setIsUsingEnvKey(true);
-  }, []);
-
-  const saveApiKey = () => {
-    if (tempKey.trim()) {
-      localStorage.setItem('gemini_api_key', tempKey.trim());
-      setApiKey(tempKey.trim());
-      setShowSettings(false);
-      setError(null); 
-    }
-  };
-
-  const clearApiKey = () => {
-    localStorage.removeItem('gemini_api_key');
-    setApiKey('');
-    setTempKey('');
-  };
-
+  // --- 核心功能：呼叫 AI ---
   const fetchData = useCallback(async () => {
-    if (!location.trim()) return;
-    
-    // 再次確保金鑰存在
-    const currentKey = apiKey || HARDCODED_KEY;
-    
-    if (!currentKey) {
-      setShowSettings(true);
-      setError("請先設定 API Key 才能開始使用");
+    // 1. 防呆檢查
+    if (!location.trim()) {
+      alert("請輸入目的地！");
       return;
     }
-
+    
     setLoading(true);
     setError(null);
+
     try {
-      const result = await getGeminiSuggestion(currentKey, location, gender, style, colorSeason, targetDay, timeOfDay);
-      setData(result);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : '發生未知錯誤';
-      setError(errorMsg);
-      console.error(err);
+      // 2. 呼叫 Service (注意：這裡不需要傳入 apiKey 了，Service 會自己去 .env 抓)
+      const result = await getGeminiSuggestion(
+        location, 
+        gender, 
+        style, 
+        colorSeason, 
+        targetDay, 
+        timeOfDay
+      );
       
-      // 如果真的發生 Key 錯誤，才顯示設定視窗
-      if (errorMsg.includes('Key') || errorMsg.includes('API') || errorMsg.includes('permission') || errorMsg.includes('403')) {
-          // 這裡我們不強制跳出，因為已經寫死了，可能是配額滿了
-          console.log("API Error detected");
+      setData(result);
+
+    } catch (err: any) {
+      console.error("App層級捕捉到錯誤:", err);
+      const errorMsg = err instanceof Error ? err.message : '發生未知錯誤';
+      
+      // 顯示友善的錯誤訊息
+      setError(errorMsg);
+      
+      // 如果是 Key 相關錯誤，給予特別提示
+      if (errorMsg.includes("Key") || errorMsg.includes("env")) {
+         alert("系統設定錯誤：找不到 API Key。\n請確認您的 .env 檔案是否正確設定 VITE_GOOGLE_API_KEY");
       }
+
     } finally {
       setLoading(false);
     }
-  }, [apiKey, location, gender, style, colorSeason, targetDay, timeOfDay]);
+  }, [location, gender, style, colorSeason, targetDay, timeOfDay]);
 
   const handleLocationSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +100,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-slate-800 font-sans pb-20">
-      {/* Navbar-like Header */}
+      {/* 頂部導覽列 */}
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between">
           <h1 className="text-xl font-extrabold tracking-tight flex items-center gap-2 text-slate-900">
@@ -127,98 +108,27 @@ const App: React.FC = () => {
             穿搭氣象台
           </h1>
           <div className="flex items-center gap-4">
-             <div className="text-[10px] font-medium text-slate-400 hidden md:flex items-center gap-2">
+             <div className="text-[10px] font-medium text-slate-400 flex items-center gap-2">
                <span className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`}></span>
-               {loading ? '分析中...' : '就緒'}
+               {loading ? 'AI 思考中...' : '系統就緒'}
              </div>
-             
-             {/* 隱藏設定按鈕，除非真的需要 */}
-             {!isUsingEnvKey && (
-               <button 
-                 onClick={() => {
-                     setTempKey(apiKey);
-                     setShowSettings(true);
-                 }}
-                 className="p-1.5 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
-                 title="設定 API Key"
-               >
-                 <SettingsIcon className="w-5 h-5" />
-               </button>
-             )}
           </div>
         </div>
       </header>
 
-      {/* Settings Modal - 只在特殊情況顯示 */}
-      {showSettings && !isUsingEnvKey && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 m-4">
-            <div className="flex items-center gap-3 mb-4 text-slate-800">
-              <div className="bg-indigo-100 p-2 rounded-full">
-                 <KeyIcon className="w-6 h-6 text-indigo-600" />
-              </div>
-              <h2 className="text-xl font-bold">設定 API Key</h2>
-            </div>
-            
-            <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-              為了確保您的使用權限與免費額度，請輸入您個人的 Google Gemini API Key。
-              <br />
-              <a 
-                href="https://aistudio.google.com/app/apikey" 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-indigo-600 font-bold hover:underline"
-              >
-                取得免費 API Key &rarr;
-              </a>
-            </p>
-
-            <input 
-              type="password" 
-              value={tempKey}
-              onChange={(e) => setTempKey(e.target.value)}
-              placeholder="輸入您的 API Key (AIza...)"
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 mb-4 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm"
-            />
-
-            <div className="flex justify-end gap-3">
-              <button 
-                onClick={() => setShowSettings(false)}
-                className="px-4 py-2 text-slate-500 hover:bg-slate-100 rounded-lg font-medium text-sm"
-              >
-                取消
-              </button>
-              {apiKey && (
-                 <button 
-                 onClick={clearApiKey}
-                 className="px-4 py-2 text-red-500 hover:bg-red-50 rounded-lg font-medium text-sm"
-               >
-                 清除 Key
-               </button>
-              )}
-              <button 
-                onClick={saveApiKey}
-                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-sm shadow-md"
-              >
-                儲存並開始
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
         
-        {/* Control Panel */}
+        {/* 控制面板 */}
         <div className="mb-8 bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
+          {/* 背景裝飾 */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3 opacity-60"></div>
 
           <div className="p-5 md:p-8 flex flex-col gap-6">
             
-            {/* 1. Location & Date/Time */}
+            {/* 上半部：地點與時間 */}
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                {/* Location */}
+                {/* 地點輸入 */}
                 <div className="md:col-span-5 space-y-2">
                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">目的地</label>
                    <form onSubmit={handleLocationSubmit} className="relative group">
@@ -246,7 +156,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Date Selector */}
+                {/* 日期選擇 */}
                 <div className="md:col-span-3 space-y-2">
                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">哪一天？</label>
                    <div className="flex flex-col gap-2">
@@ -266,7 +176,7 @@ const App: React.FC = () => {
                    </div>
                 </div>
 
-                {/* Time Selector */}
+                {/* 時段選擇 */}
                 <div className="md:col-span-4 space-y-2">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">哪個時段？</label>
                   <div className="bg-slate-50 p-1.5 rounded-2xl border border-slate-100 h-[120px] overflow-y-auto custom-scrollbar">
@@ -289,7 +199,7 @@ const App: React.FC = () => {
 
             <hr className="border-slate-100" />
 
-            {/* 2. Personalization Grid */}
+            {/* 下半部：個人化選項 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-4">
                    <div className="space-y-2">
@@ -310,7 +220,7 @@ const App: React.FC = () => {
                    </div>
                </div>
 
-               {/* Color Season */}
+               {/* 色彩季型 */}
                <div className="space-y-2">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
                     <span>色彩季型</span>
@@ -321,22 +231,22 @@ const App: React.FC = () => {
                       onChange={(e) => setColorSeason(e.target.value as ColorSeason)}
                       className="w-full bg-white border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 shadow-sm"
                     >
-                      <optgroup label="Winter (冬 - 冷冽/對比)">
+                      <optgroup label="Winter (冬)">
                         <option value={ColorSeason.BrightWinter}>{ColorSeason.BrightWinter}</option>
                         <option value={ColorSeason.TrueWinter}>{ColorSeason.TrueWinter}</option>
                         <option value={ColorSeason.DarkWinter}>{ColorSeason.DarkWinter}</option>
                       </optgroup>
-                      <optgroup label="Spring (春 - 活潑/明亮)">
+                      <optgroup label="Spring (春)">
                         <option value={ColorSeason.BrightSpring}>{ColorSeason.BrightSpring}</option>
                         <option value={ColorSeason.TrueSpring}>{ColorSeason.TrueSpring}</option>
                         <option value={ColorSeason.LightSpring}>{ColorSeason.LightSpring}</option>
                       </optgroup>
-                      <optgroup label="Summer (夏 - 柔和/粉嫩)">
+                      <optgroup label="Summer (夏)">
                         <option value={ColorSeason.LightSummer}>{ColorSeason.LightSummer}</option>
                         <option value={ColorSeason.TrueSummer}>{ColorSeason.TrueSummer}</option>
                         <option value={ColorSeason.SoftSummer}>{ColorSeason.SoftSummer}</option>
                       </optgroup>
-                      <optgroup label="Autumn (秋 - 濃郁/溫暖)">
+                      <optgroup label="Autumn (秋)">
                         <option value={ColorSeason.SoftAutumn}>{ColorSeason.SoftAutumn}</option>
                         <option value={ColorSeason.TrueAutumn}>{ColorSeason.TrueAutumn}</option>
                         <option value={ColorSeason.DarkAutumn}>{ColorSeason.DarkAutumn}</option>
@@ -346,28 +256,25 @@ const App: React.FC = () => {
                </div>
             </div>
 
+            {/* 生成按鈕 */}
             <button
               onClick={fetchData}
               disabled={loading}
               className="w-full mt-2 py-3.5 bg-slate-900 hover:bg-black text-white rounded-xl font-bold text-base shadow-xl shadow-slate-900/20 transition-all transform active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
             >
               <RefreshIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-              {loading ? '正在分析與生成...' : '生成專屬穿搭'}
+              {loading ? 'AI 正在分析與生成穿搭...' : '生成專屬穿搭'}
             </button>
 
           </div>
         </div>
 
+        {/* 結果顯示區 */}
         <main className="animate-fade-in min-h-[200px]">
           {error && (
             <div className="p-6 bg-red-50 border border-red-100 text-red-600 rounded-2xl text-center shadow-sm">
-              <p className="font-bold mb-1">請注意</p>
+              <p className="font-bold mb-1">發生錯誤</p>
               <p className="text-sm opacity-80">{error}</p>
-              {error.includes("Key") && !isUsingEnvKey && (
-                 <button onClick={() => setShowSettings(true)} className="mt-2 text-xs bg-red-100 px-3 py-1 rounded-full text-red-700 font-bold hover:bg-red-200">
-                   設定 Key
-                 </button>
-              )}
             </div>
           )}
 
@@ -376,14 +283,9 @@ const App: React.FC = () => {
           )}
           
           {loading && !data && (
-             <div className="w-full space-y-6 animate-pulse">
-                <div className="h-40 bg-slate-200/50 rounded-3xl"></div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                   <div className="h-64 bg-slate-200/50 rounded-2xl"></div>
-                   <div className="h-64 bg-slate-200/50 rounded-2xl"></div>
-                   <div className="h-64 bg-slate-200/50 rounded-2xl"></div>
-                </div>
-                <div className="h-56 bg-slate-200/50 rounded-2xl"></div>
+             <div className="w-full space-y-6 animate-pulse text-center p-10">
+                <p className="text-slate-400">正在與 Google 氣象衛星與時尚資料庫連線...</p>
+                <div className="h-40 bg-slate-200/50 rounded-3xl mx-auto w-full"></div>
              </div>
           )}
         </main>
