@@ -8,10 +8,10 @@ const getApiKey = (keyName: string) => {
   return envKey.trim();
 }
 
-// 🔥 新增：色彩翻譯機 (把時尚色名轉成 Pexels 看得懂的簡單色名)
+// 🔥 色彩翻譯機：把時尚色名轉成 Pexels 看得懂的簡單色名
 function simplifyColorForSearch(query: string): string {
     const map: Record<string, string> = {
-        "electric blue": "royal blue", // Pexels 對 royal blue 反應比較好
+        "electric blue": "royal blue",
         "hot pink": "bright pink",
         "icy grey": "light grey",
         "pine green": "dark green",
@@ -26,9 +26,7 @@ function simplifyColorForSearch(query: string): string {
         "burgundy": "dark red",
         "teal": "blue green"
     };
-    
     let simpleQuery = query.toLowerCase();
-    // 尋找並替換顏色詞
     Object.keys(map).forEach(key => {
         if (simpleQuery.includes(key)) {
             simpleQuery = simpleQuery.replace(key, map[key]);
@@ -37,7 +35,7 @@ function simplifyColorForSearch(query: string): string {
     return simpleQuery;
 }
 
-// Pexels 搜尋 (加入色彩翻譯)
+// 🔥 Pexels 搜尋：加入翻譯與強制關鍵字
 async function fetchPexelsImages(query: string): Promise<string[]> {
     const pexelsKey = getApiKey("VITE_PEXELS_API_KEY");
     if (!pexelsKey) return [];
@@ -45,36 +43,28 @@ async function fetchPexelsImages(query: string): Promise<string[]> {
     try {
         const randomPage = Math.floor(Math.random() * 5) + 1;
         
-        // 1. 先把高級色名轉成簡單色名 (例如 Icy Grey -> Light Grey)
-        // 這樣 Pexels 比較容易搜到正確顏色的圖
+        // 1. 翻譯顏色
         let safeQuery = simplifyColorForSearch(query);
         
         // 2. 強制加上 outfit
         if (!safeQuery.includes("outfit") && !safeQuery.includes("fashion")) {
              safeQuery = `${safeQuery} outfit`; 
         }
-
-        // 3. 強制加上 "street style" (街拍)，通常這種圖比較容易出現全身穿搭
-        safeQuery += " street style";
-
-        console.log(`🔍 Pexels 搜尋優化: 原本="${query}" -> 修正="${safeQuery}"`);
+        safeQuery += " street style"; // 增加街拍感
 
         const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQuery)}&per_page=3&page=${randomPage}&orientation=portrait`;
         const res = await fetch(url, { headers: { Authorization: pexelsKey } });
         if (!res.ok) return [];
         const data = await res.json();
         
+        // 降級搜尋備案
         if (data.photos.length === 0) {
-            // 如果翻譯後還是沒圖，就只搜顏色本身 (例如 "Royal Blue outfit")，放棄單品名
-            // 這樣至少顏色是對的
             const colorOnly = safeQuery.split(" ").slice(0, 2).join(" ") + " outfit";
-            console.log(`⚠️ 找不到圖，降級搜尋: "${colorOnly}"`);
             const retryUrl = `https://api.pexels.com/v1/search?query=${encodeURIComponent(colorOnly)}&per_page=3&orientation=portrait`;
             const retryRes = await fetch(retryUrl, { headers: { Authorization: pexelsKey } });
             const retryData = await retryRes.json();
             return retryData.photos.map((photo: any) => photo.src.large2x || photo.src.medium);
         }
-        
         return data.photos.map((photo: any) => photo.src.large2x || photo.src.medium);
     } catch (e) { return []; }
 }
@@ -90,19 +80,35 @@ function repairJson(jsonString: string): string {
     return fixed;
 }
 
+// 🔥 真實天氣修正：自動加上 ", Taiwan"
 async function fetchRealWeather(location: string): Promise<string> {
     try {
-        const res = await fetch(`https://wttr.in/${encodeURIComponent(location)}?format=j1`);
+        let searchLoc = location;
+        // 聰明判斷：如果是中文且不含國家名，自動加上 Taiwan
+        if (!searchLoc.includes("台灣") && !searchLoc.includes("Taiwan") && !searchLoc.includes("Japan") && !searchLoc.includes("Korea") && !searchLoc.includes("China")) {
+             searchLoc = `${location}, Taiwan`; 
+        }
+
+        console.log(`🌍 查詢真實天氣: ${searchLoc}`);
+        const res = await fetch(`https://wttr.in/${encodeURIComponent(searchLoc)}?format=j1`);
         if (!res.ok) return "";
+        
         const data = await res.json();
         const current = data.current_condition[0];
+        const areaName = data.nearest_area?.[0]?.areaName?.[0]?.value || location;
+
         return `
-        【真實數據】
-        氣溫: ${current.temp_C}°C (體感 ${current.FeelsLikeC}°C)
-        天氣: ${current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value}
-        降雨機率: ${data.weather?.[0]?.hourly?.[0]?.chanceofrain || 0}%
+        【真實天氣數據】
+        - 地點: ${areaName}
+        - 氣溫: ${current.temp_C}°C (體感 ${current.FeelsLikeC}°C)
+        - 濕度: ${current.humidity}%
+        - 天氣: ${current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value}
+        (請依照此數據建議穿搭)
         `;
-    } catch (e) { return ""; }
+    } catch (e) {
+        console.warn("無法取得真實天氣");
+        return "";
+    }
 }
 
 export const getGeminiSuggestion = async (
@@ -115,46 +121,61 @@ export const getGeminiSuggestion = async (
 ): Promise<WeatherOutfitResponse> => {
 
   const googleKey = getApiKey("VITE_GOOGLE_API_KEY");
-  if (!googleKey) throw new Error("API Key Missing");
+  if (!googleKey) throw new Error("系統錯誤：找不到 API Key");
 
   const genderStr = gender === Gender.Male ? '男士' : gender === Gender.Female ? '女士' : '中性';
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式' : '運動';
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
 
+  // 1. 抓真實天氣
   const realWeather = await fetchRealWeather(location);
 
-  // Prompt 保持你之前那份 12 季型全攻略版本 (因為那份很好)
-  // 這裡為了節省篇幅，我只列出關鍵結構，請確保你複製進去的是包含完整色彩規則的 Prompt
+  // 2. Prompt (包含 12 季型規則)
   const prompt = `
-  角色：色彩形象顧問。
+  角色：嚴格的色彩形象顧問。
   使用者：${genderStr}, 風格：${styleStr}。
   任務：針對「${colorSeason}」色彩季型，在「${location} ${dayLabel}${timeOfDay}」提供穿搭。
   ${realWeather}
 
-  【色彩規則：嚴格遵守 ${colorSeason}】
-  (請在此處保留你之前那份詳細的 12 季型色彩清單，或直接使用我上一份回答的 Prompt 內容)
+  【色彩規則：嚴格遵守 ${colorSeason}，避開禁忌色】
   
   ❄️ **WINTER**
-  - Bright Winter: ✅ Electric Blue, Hot Pink, Icy Grey. ❌ Earth Tones.
-  (此處省略中間的色彩列表，請務必補上，或直接用上一版的 Prompt)
+  - Bright Winter: ✅ Electric Blue, Hot Pink, Icy Grey, Royal Blue. ❌ Olive, Mustard, Rust.
+  - True Winter: ✅ Holly Berry Red, Sapphire Blue, White, Black. ❌ Golden Brown, Orange.
+  - Dark Winter: ✅ Deep Teal, Burgundy, Midnight Blue. ❌ Light Peach, Warm Orange.
 
-  【重要指令】
-  1. Visual Prompts：請只產生 **[英文色名] + [單品]**，例如 "Electric Blue Coat"。不要加其他形容詞。
-  2. 語言：JSON 內容用繁體中文。
+  🍂 **AUTUMN**
+  - Soft Autumn: ✅ Sage Green, Dusty Pink, Oatmeal, Khaki. ❌ Black, Bright Fuchsia.
+  - True Autumn: ✅ Mustard, Rust, Olive Green, Tomato Red. ❌ Pastel Pink, Blue-Grey.
+  - Dark Autumn: ✅ Dark Olive, Terracotta, Dark Chocolate. ❌ Pale Pastels, Hot Pink.
 
-  請回傳 JSON:
+  ☀️ **SPRING**
+  - Bright Spring: ✅ Bright Coral, Turquoise, Lime Green. ❌ Dusty colors, Grey.
+  - True Spring: ✅ Golden Yellow, Peach, Salmon, Grass Green. ❌ Black, Berry colors.
+  - Light Spring: ✅ Pale Peach, Mint Green, Ivory. ❌ Black, Dark Brown.
+
+  🌊 **SUMMER**
+  - Light Summer: ✅ Powder Blue, Pale Pink, Lavender. ❌ Black, Orange.
+  - True Summer: ✅ Raspberry, Soft Blue, Rose Pink. ❌ Orange, Gold.
+  - Soft Summer: ✅ Mauve, Dusty Blue, Grey Green. ❌ Bright Orange, Electric Blue.
+
+  【指令】
+  1. Visual Prompts：請只產生 **[英文色名] + [單品]** (例如 "Electric Blue Coat")。
+  2. 語言：繁體中文。
+
+  回傳 JSON:
   {
     "location": "${location}",
     "weather": {
-       "location": "${location}", "temperature": "溫度", "feelsLike": "體感", "humidity": "濕度", "rainProb": "機率", "description": "簡述", "advice": "叮嚀",
-       "forecast": []
+      "location": "${location}", "temperature": "溫度", "feelsLike": "體感", "humidity": "濕度", "rainProb": "機率", "description": "簡述", "advice": "叮嚀",
+      "forecast": []
     },
     "outfit": {
       "items": [{ "item": "單品", "color": "色", "reason": "理", "detail": "細", "icon": "tshirt" }],
       "tips": "議", "colorPalette": [], "colorDescription": "述",
       "visualPrompts": ["Color Item", "Color Item"]
     },
-    "generatedImages": []
+    "generatedImages": [] 
   }
   `;
 
@@ -180,7 +201,6 @@ export const getGeminiSuggestion = async (
 
   } catch (e) { throw e; }
 
-  // 平行搜尋
   if (parsedData.outfit?.visualPrompts?.length > 0) {
       const [images1, images2] = await Promise.all([
           fetchPexelsImages(parsedData.outfit.visualPrompts[0]),
@@ -189,9 +209,8 @@ export const getGeminiSuggestion = async (
       parsedData.generatedImages = [...images1.slice(0, 2), ...images2.slice(0, 1)];
       
       if (parsedData.generatedImages.length === 0) {
-           // 備案：只搜顏色，不搜單品，確保至少顏色是對的
            const backupColor = parsedData.outfit.items[0].color; 
-           parsedData.generatedImages = await fetchPexelsImages(`${backupColor} fashion street style`);
+           parsedData.generatedImages = await fetchPexelsImages(`${backupColor} fashion outfit`);
       }
   }
 
