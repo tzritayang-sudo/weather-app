@@ -10,20 +10,24 @@ interface ResultDisplayProps {
   data: WeatherOutfitResponse;
 }
 
-// 🔥 色彩名稱轉 Hex 的輔助函式 (解決色票變黑問題)
+// 🔥 高亮版色碼轉換 (專為深色模式優化)
 const getColorHex = (colorName: string) => {
   const lower = colorName.toLowerCase();
-  if (lower.includes('electric blue')) return '#00FFFF';
-  if (lower.includes('hot pink')) return '#FF69B4';
-  if (lower.includes('icy grey') || lower.includes('ice grey')) return '#E0E5E5';
-  if (lower.includes('emerald')) return '#50C878';
-  if (lower.includes('royal blue')) return '#4169E1';
-  if (lower.includes('mustard')) return '#FFDB58';
-  if (lower.includes('rust')) return '#B7410E';
-  if (lower.includes('sage')) return '#9DC183';
+  // 使用高飽和度、高亮度的 Hex Code
+  if (lower.includes('electric blue')) return '#00FFFF'; // 螢光青
+  if (lower.includes('hot pink')) return '#FF1493';      // 亮粉紅
+  if (lower.includes('icy grey') || lower.includes('ice grey')) return '#F0F8FF'; // 幾乎純白
+  if (lower.includes('emerald')) return '#2ECC71';       // 亮綠
+  if (lower.includes('royal blue')) return '#4361EE';    // 亮寶藍
+  if (lower.includes('mustard')) return '#FFD700';       // 金黃
+  if (lower.includes('rust')) return '#FF7F50';          // 珊瑚橘 (比暗紅更亮)
+  if (lower.includes('sage')) return '#98FB98';          // 蒼白綠 (比一般鼠尾草更亮)
   if (lower.includes('charcoal')) return '#36454F';
   if (lower.includes('navy')) return '#000080';
-  // 如果不是特殊色，就直接回傳原字串 (讓瀏覽器自己猜)
+  if (lower.includes('white')) return '#FFFFFF';
+  if (lower.includes('black')) return '#000000';
+  
+  // 如果沒對應到，回傳原字串
   return colorName;
 };
 
@@ -132,7 +136,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
         )}
       </div>
 
-      {/* 2. 圖片 (Pexels) */}
+      {/* 2. 圖片 */}
       {data.generatedImages && data.generatedImages.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
@@ -157,7 +161,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
         </div>
       )}
 
-      {/* 3. 色票 (修正顯示問題) */}
+      {/* 3. 色票 (修正深色顯示) */}
       {data.outfit.colorPalette && data.outfit.colorPalette.length > 0 && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
           <div className="flex items-center justify-between mb-3">
@@ -167,9 +171,14 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
             <div className="flex items-center gap-2">
               {data.outfit.colorPalette.map((color, idx) => (
                 <div key={idx} className="group relative">
+                  {/* 🔥 色票修正：加入 ring, opacity, isolation */}
                   <div 
-                    className="w-10 h-10 rounded-full shadow-md border-2 border-white dark:border-slate-600 transition-transform transform hover:scale-110 hover:z-10 cursor-pointer"
-                    style={{ backgroundColor: getColorHex(color) }} 
+                    className="w-10 h-10 rounded-full shadow-lg border-2 border-white dark:border-slate-600 ring-1 ring-slate-100 dark:ring-slate-700 transition-transform transform hover:scale-110 hover:z-10 cursor-pointer relative z-10"
+                    style={{ 
+                        backgroundColor: getColorHex(color),
+                        opacity: 1,
+                        isolation: 'isolate'
+                    }} 
                   ></div>
                   <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs bg-slate-800 text-white px-2 py-1 rounded transition-opacity whitespace-nowrap z-20 pointer-events-none">
                     {color}
@@ -186,7 +195,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
         </div>
       )}
 
-      {/* 4. 單品列表 (修正深色模式文字顏色) */}
+      {/* 4. 單品列表 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {data.outfit.items.map((item, index) => (
             <div key={index} className="group bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none border border-slate-100 dark:border-slate-700 hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)] transition-all duration-300 flex flex-col items-center justify-between text-center h-full relative overflow-hidden">
@@ -197,9 +206,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
               </div>
               <div className="w-full space-y-2">
                 <div><span className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] md:text-xs font-bold border border-slate-200 dark:border-slate-600 rounded-full">{item.color}</span></div>
-                {/* 標題文字：深色模式下改為白色 (dark:text-white) */}
                 <p className="font-bold text-slate-800 dark:text-white text-sm md:text-base leading-tight">{item.item}</p>
-                {/* 描述文字：深色模式下改為淺灰 (dark:text-slate-400) */}
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed px-1 pb-1">{item.reason}</p>
               </div>
             </div>
