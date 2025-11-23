@@ -8,6 +8,35 @@ const getApiKey = (keyName: string) => {
   return envKey.trim();
 }
 
+// 🔥 新增：取得真實天氣資料 (使用 wttr.in 免費 API)
+async function fetchRealWeather(location: string): Promise<string> {
+    try {
+        // format=j1 代表回傳 JSON 格式
+        const res = await fetch(`https://wttr.in/${encodeURIComponent(location)}?format=j1`);
+        if (!res.ok) return "";
+        const data = await res.json();
+        
+        const current = data.current_condition[0];
+        const temp = current.temp_C;
+        const feelsLike = current.FeelsLikeC;
+        const humidity = current.humidity;
+        const weatherDesc = current.lang_zh_TW?.[0]?.value || current.weatherDesc?.[0]?.value;
+        
+        return `
+        【真實天氣數據 (來自氣象局)】
+        - 目前氣溫: ${temp}°C
+        - 體感溫度: ${feelsLike}°C
+        - 濕度: ${humidity}%
+        - 天氣狀況: ${weatherDesc}
+        (請依照以上真實數據進行穿搭分析，不要自己瞎掰溫度)
+        `;
+    } catch (e) {
+        console.warn("無法取得真實天氣，將由 AI 自行估算");
+        return "";
+    }
+}
+
+// Pexels 搜尋 (保持原樣)
 async function fetchPexelsImages(query: string): Promise<string[]> {
     const pexelsKey = getApiKey("VITE_PEXELS_API_KEY");
     if (!pexelsKey) return [];
@@ -59,56 +88,62 @@ export const getGeminiSuggestion = async (
   const styleStr = style === Style.Casual ? '休閒' : style === Style.Formal ? '正式' : '運動';
   const dayLabel = targetDay === TargetDay.Today ? '今天' : targetDay === TargetDay.Tomorrow ? '明天' : '後天';
 
-  // 🔥 12 色彩季型全攻略 (包含避雷區)
+  // 1. 先去抓真實天氣
+  const realWeatherData = await fetchRealWeather(location);
+
+  // 2. 把真實天氣塞進 Prompt
   const prompt = `
-  角色：極度嚴格的色彩形象顧問。
+  角色：專業氣象主播兼時尚顧問。
   使用者：${genderStr}, 風格：${styleStr}。
   任務：針對「${colorSeason}」色彩季型，在「${location} ${dayLabel}${timeOfDay}」提供穿搭建議。
 
-  【色彩資料庫：請嚴格遵守 ${colorSeason} 的規則，絕對禁止使用避雷色】
+  ${realWeatherData} 
+  (如果上方有真實數據，請務必以該數據為準填入 weather 欄位；若無，則根據歷史氣候估算。)
+
+  【色彩資料庫：請嚴格遵守 ${colorSeason} 的規則】
 
   ❄️ **WINTER (冬 - 冷/艷/深)**
   1. **Bright Winter (淨冬)**:
-     - ✅ 推薦: Electric Blue, Hot Pink, Lemon Yellow, Emerald Green, Pine Green, Icy Grey, Pure White, Black. (高對比/鮮豔)
+     - ✅ 推薦: Electric Blue, Hot Pink, Lemon Yellow, Emerald Green, Pine Green, Icy Grey, Pure White, Black.
      - ❌ **禁止**: Olive Green, Mustard, Rust, Soft Pastels, Muted Earth Tones.
   2. **True Winter (冷冬)**:
-     - ✅ 推薦: Holly Berry Red, Sapphire Blue, Royal Purple, Emerald, Charcoal, White, Black, Cool Grey. (正冷色)
+     - ✅ 推薦: Holly Berry Red, Sapphire Blue, Royal Purple, Emerald, Charcoal, White, Black, Cool Grey.
      - ❌ **禁止**: Golden Brown, Orange, Warm Beige, Camel, Peach.
   3. **Dark Winter (深冬)**:
-     - ✅ 推薦: Deep Teal, Burgundy, Midnight Blue, Dark Chocolate (Cool), Black, Charcoal, Deep Plum. (深沉濃郁)
+     - ✅ 推薦: Deep Teal, Burgundy, Midnight Blue, Dark Chocolate (Cool), Black, Charcoal, Deep Plum.
      - ❌ **禁止**: Pale Pastels, Light Peach, Warm Orange, Light Beige.
 
   🍂 **AUTUMN (秋 - 暖/柔/深)**
   4. **Soft Autumn (柔秋)**:
-     - ✅ 推薦: Sage Green, Dusty Pink, Oatmeal, Khaki, Warm Grey, Salmon, Olive, Butter Yellow. (低飽和/霧面)
+     - ✅ 推薦: Sage Green, Dusty Pink, Oatmeal, Khaki, Warm Grey, Salmon, Olive, Butter Yellow.
      - ❌ **禁止**: Black, Bright Fuchsia, Electric Blue, Stark White.
   5. **True Autumn (暖秋)**:
-     - ✅ 推薦: Mustard, Rust, Olive Green, Tomato Red, Golden Brown, Teal, Camel, Cream. (正暖色/大地色)
+     - ✅ 推薦: Mustard, Rust, Olive Green, Tomato Red, Golden Brown, Teal, Camel, Cream.
      - ❌ **禁止**: Pastel Pink, Blue-Grey, Black, Cool Berry.
   6. **Dark Autumn (深秋)**:
-     - ✅ 推薦: Dark Olive, Terracotta, Dark Chocolate, Deep Forest Green, Burnt Orange, Maroon, Gold. (深沉溫暖)
+     - ✅ 推薦: Dark Olive, Terracotta, Dark Chocolate, Deep Forest Green, Burnt Orange, Maroon, Gold.
      - ❌ **禁止**: Pale Pastels, Cool Grey, Hot Pink, Lilac.
 
   ☀️ **SPRING (春 - 暖/亮/清)**
   7. **Bright Spring (淨春)**:
-     - ✅ 推薦: Bright Coral, Turquoise, Lime Green, Bright Yellow, Poppy Red, Warm Grey, Cream. (高彩度暖色)
+     - ✅ 推薦: Bright Coral, Turquoise, Lime Green, Bright Yellow, Poppy Red, Warm Grey, Cream.
      - ❌ **禁止**: Dusty colors, Muted Grey, Black, Burgundy.
   8. **True Spring (暖春)**:
-     - ✅ 推薦: Golden Yellow, Peach, Salmon, Grass Green, Aqua, Camel, Ivory. (正暖亮色)
+     - ✅ 推薦: Golden Yellow, Peach, Salmon, Grass Green, Aqua, Camel, Ivory.
      - ❌ **禁止**: Black, Cool White, Dark Grey, Berry colors.
   9. **Light Spring (淺春)**:
-     - ✅ 推薦: Pale Peach, Mint Green, Pale Yellow, Light Aqua, Ivory, Beige, Light Coral. (粉嫩暖色)
+     - ✅ 推薦: Pale Peach, Mint Green, Pale Yellow, Light Aqua, Ivory, Beige, Light Coral.
      - ❌ **禁止**: Black, Dark Brown, Burgundy, Navy.
 
   🌊 **SUMMER (夏 - 冷/柔/淺)**
   10. **Light Summer (淺夏)**:
-     - ✅ 推薦: Powder Blue, Pale Pink, Lavender, Light Grey, Off-White, Mint, Sky Blue. (粉嫩冷色)
+     - ✅ 推薦: Powder Blue, Pale Pink, Lavender, Light Grey, Off-White, Mint, Sky Blue.
      - ❌ **禁止**: Black, Orange, Mustard, Dark Brown.
   11. **True Summer (冷夏)**:
-     - ✅ 推薦: Raspberry, Soft Blue, Rose Pink, Grey Blue, Slate Grey, Cocoa (Cool), Soft White. (正冷柔色)
+     - ✅ 推薦: Raspberry, Soft Blue, Rose Pink, Grey Blue, Slate Grey, Cocoa (Cool), Soft White.
      - ❌ **禁止**: Orange, Gold, Rust, Yellow-Green.
   12. **Soft Summer (柔夏)**:
-     - ✅ 推薦: Mauve, Dusty Blue, Grey Green, Charcoal Blue, Taupe, Soft White, Rose Brown. (帶灰調冷色)
+     - ✅ 推薦: Mauve, Dusty Blue, Grey Green, Charcoal Blue, Taupe, Soft White, Rose Brown.
      - ❌ **禁止**: Black, Bright Orange, Electric Blue, Stark White.
 
   【其他規則】
@@ -121,7 +156,7 @@ export const getGeminiSuggestion = async (
     "location": "${location}",
     "weather": {
       "location": "${location}",
-      "temperature": "溫度", "feelsLike": "體感", "humidity": "濕度", "rainProb": "機率", "description": "簡述",
+      "temperature": "請填入真實溫度", "feelsLike": "體感", "humidity": "濕度", "rainProb": "機率", "description": "簡述",
       "advice": "天氣叮嚀...",
       "forecast": [
          { "day": "今天", "condition": "...", "high": "...", "low": "...", "rainProb": "..." },
