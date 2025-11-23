@@ -1,253 +1,323 @@
 import React, { useMemo } from 'react';
 import { 
-  CloudRainIcon, SunIcon, TShirtIcon, ShirtIcon, HoodieIcon, SweaterIcon, JacketIcon, CoatIcon, 
-  PantsIcon, ShortsIcon, SkirtIcon, DressIcon, SneakerIcon, BootIcon, FormalShoeIcon, SandalsIcon, 
-  BagIcon, GlassesIcon, WatchIcon, GenericClothingIcon, UmbrellaIcon, HatIcon, ScarfIcon
-} from './Icons';
-import { WeatherOutfitResponse } from '../types';
+  CloudRainIcon, 
+  SunIcon, 
+  TShirtIcon, 
+  ShirtIcon, 
+  HoodieIcon, 
+  CoatIcon, 
+  PantsIcon, 
+  ShortsIcon, 
+  SkirtIcon, 
+  DressIcon, 
+  ShoesIcon, 
+  SneakersIcon, 
+  BootsIcon, 
+  SandalsIcon, 
+  BagIcon, 
+  UmbrellaIcon, 
+  GlassesIcon,
+  ThermometerIcon,
+  DropletsIcon,
+  WindIcon
+} from 'lucide-react';
+import { WeatherOutfitResponse, Style, Gender, TargetDay, TimeOfDay } from '../types';
+
+// ----------------------------------------------------------------------
+// 1. 色彩與圖示對應邏輯 (Mapping Logic)
+// ----------------------------------------------------------------------
+
+// 修正後的色彩對應表 (支援中英文與特殊色)
+const getColorHex = (colorName: string): string => {
+  const name = colorName.toLowerCase().trim();
+  
+  // 特殊色與亮色系修正 (確保在深色模式下可見)
+  if (name.includes('electric') || name.includes('neon') || name.includes('cyan')) return '#00FFFF'; // 螢光青
+  if (name.includes('hot pink') || name.includes('fuchsia') || name.includes('magenta')) return '#FF00FF'; // 螢光粉
+  if (name.includes('royal') || name.includes('sapphire') || name.includes('cobalt')) return '#4169E1'; // 寶石藍
+  if (name.includes('bright white') || name.includes('pure white')) return '#F0F0F0'; // 亮白 (改用淺灰以免在白底消失)
+  if (name.includes('jet black') || name.includes('pure black')) return '#1a1a1a'; // 亮黑
+
+  // 標準色系
+  if (name.includes('navy') || name.includes('深藍')) return '#000080';
+  if (name.includes('blue') || name.includes('藍')) return '#3B82F6';
+  if (name.includes('white') || name.includes('白')) return '#FFFFFF';
+  if (name.includes('black') || name.includes('黑')) return '#000000';
+  if (name.includes('gray') || name.includes('grey') || name.includes('灰')) return '#9CA3AF';
+  if (name.includes('beige') || name.includes('米') || name.includes('卡其')) return '#D1D5DB';
+  if (name.includes('brown') || name.includes('咖') || name.includes('褐')) return '#8B4513';
+  if (name.includes('red') || name.includes('紅')) return '#EF4444';
+  if (name.includes('pink') || name.includes('粉')) return '#EC4899';
+  if (name.includes('orange') || name.includes('橘') || name.includes('橙')) return '#F97316';
+  if (name.includes('yellow') || name.includes('黃')) return '#EAB308';
+  if (name.includes('green') || name.includes('綠')) return '#22C55E';
+  if (name.includes('purple') || name.includes('紫')) return '#A855F7';
+  if (name.includes('gold') || name.includes('金')) return '#FFD700';
+  if (name.includes('silver') || name.includes('銀')) return '#C0C0C0';
+
+  return '#9CA3AF'; // 預設灰色
+};
+
+// 圖示選擇器
+const getIconComponent = (itemName: string) => {
+  const name = itemName.toLowerCase();
+  
+  // 上身
+  if (name.includes('t-shirt') || name.includes('t恤') || name.includes('短袖')) return TShirtIcon;
+  if (name.includes('shirt') || name.includes('襯衫') || name.includes('polo')) return ShirtIcon;
+  if (name.includes('hoodie') || name.includes('sweatshirt') || name.includes('帽t') || name.includes('衛衣')) return HoodieIcon;
+  if (name.includes('coat') || name.includes('jacket') || name.includes('blazer') || name.includes('cardigan') || name.includes('外套') || name.includes('大衣') || name.includes('西裝') || name.includes('針織')) return CoatIcon;
+  
+  // 下身
+  if (name.includes('short') || name.includes('短褲')) return ShortsIcon;
+  if (name.includes('skirt') || name.includes('裙')) return SkirtIcon;
+  if (name.includes('dress') || name.includes('洋裝') || name.includes('連身')) return DressIcon;
+  if (name.includes('pant') || name.includes('jeans') || name.includes('trousers') || name.includes('褲')) return PantsIcon;
+
+  // 鞋子
+  if (name.includes('sneaker') || name.includes('trainer') || name.includes('運動鞋') || name.includes('休閒鞋') || name.includes('小白鞋')) return SneakersIcon;
+  if (name.includes('boot') || name.includes('靴')) return BootsIcon;
+  if (name.includes('sandal') || name.includes('flip') || name.includes('涼鞋') || name.includes('拖鞋')) return SandalsIcon;
+  if (name.includes('shoe') || name.includes('flat') || name.includes('loafer') || name.includes('皮鞋') || name.includes('樂福') || name.includes('平底')) return ShoesIcon;
+
+  // 配件
+  if (name.includes('bag') || name.includes('tote') || name.includes('purse') || name.includes('包')) return BagIcon;
+  if (name.includes('umbrella') || name.includes('傘')) return UmbrellaIcon;
+  if (name.includes('glass') || name.includes('sunglass') || name.includes('墨鏡') || name.includes('眼鏡')) return GlassesIcon;
+  if (name.includes('scarf') || name.includes('圍巾')) return ShirtIcon; 
+  if (name.includes('hat') || name.includes('cap') || name.includes('beanie') || name.includes('帽')) return SunIcon;
+
+  return TShirtIcon; // 預設圖示
+};
+
+// ----------------------------------------------------------------------
+// 2. 主要元件 (Main Component)
+// ----------------------------------------------------------------------
 
 interface ResultDisplayProps {
   data: WeatherOutfitResponse;
+  loading: boolean;
+  onRetry: () => void;
+  userGender: Gender;
+  userStyle: Style;
+  targetDay: TargetDay;
+  timeOfDay: TimeOfDay;
 }
 
-// 12季型全色彩對照表
-const getColorHex = (colorName: string) => {
-  const lower = colorName.toLowerCase();
-  if (lower.includes('hot pink') || lower.includes('豔粉')) return '#FF1493';
-  if (lower.includes('peach') || lower.includes('蜜桃')) return '#FFB7C5'; 
-  if (lower.includes('salmon') || lower.includes('鮭魚')) return '#FA8072';
-  if (lower.includes('coral') || lower.includes('珊瑚')) return '#FF7F50';
-  if (lower.includes('rose') || lower.includes('玫瑰')) return '#FF007F';
-  if (lower.includes('mauve') || lower.includes('錦葵')) return '#D473D4';
-  if (lower.includes('burgundy') || lower.includes('酒紅')) return '#800020';
-  if (lower.includes('red') || lower.includes('紅')) return '#FF4500';
-  if (lower.includes('pink') || lower.includes('粉')) return '#FF69B4';
-  if (lower.includes('electric') || lower.includes('電光')) return '#00FFFF'; 
-  if (lower.includes('royal') || lower.includes('寶石')) return '#4361EE';
-  if (lower.includes('navy') || lower.includes('海軍')) return '#000080';
-  if (lower.includes('dusty blue') || lower.includes('灰藍')) return '#5B7C99';
-  if (lower.includes('sky') || lower.includes('天藍')) return '#87CEEB';
-  if (lower.includes('teal') || lower.includes('孔雀')) return '#008080';
-  if (lower.includes('blue') || lower.includes('藍')) return '#4169E1';
-  if (lower.includes('mustard') || lower.includes('芥末')) return '#FFD700';
-  if (lower.includes('gold') || lower.includes('金')) return '#FFD700'; 
-  if (lower.includes('yellow') || lower.includes('黃')) return '#FFFF00';
-  if (lower.includes('orange') || lower.includes('橘')) return '#FFA500';
-  if (lower.includes('camel') || lower.includes('駝')) return '#C19A6B';
-  if (lower.includes('rust') || lower.includes('鐵鏽')) return '#B7410E';
-  if (lower.includes('brown') || lower.includes('棕')) return '#A52A2A';
-  if (lower.includes('emerald') || lower.includes('祖母')) return '#2ECC71';
-  if (lower.includes('sage') || lower.includes('鼠尾')) return '#98FB98';
-  if (lower.includes('grey green') || lower.includes('灰綠')) return '#8FBC8F';
-  if (lower.includes('olive') || lower.includes('橄欖')) return '#808000';
-  if (lower.includes('mint') || lower.includes('薄荷')) return '#98FF98';
-  if (lower.includes('green') || lower.includes('綠')) return '#32CD32'; 
-  if (lower.includes('icy') || lower.includes('冰')) return '#F0F8FF';
-  if (lower.includes('charcoal') || lower.includes('炭')) return '#36454F';
-  if (lower.includes('ivory') || lower.includes('象牙')) return '#FFFFF0';
-  if (lower.includes('cream') || lower.includes('奶油')) return '#FFFDD0';
-  if (lower.includes('grey') || lower.includes('gray') || lower.includes('灰')) return '#D3D3D3';
-  if (lower.includes('white') || lower.includes('白')) return '#FFFFFF';
-  if (lower.includes('beige') || lower.includes('米')) return '#F5F5DC';
-  if (lower.includes('khaki') || lower.includes('卡其')) return '#F0E68C';
-  if (lower.includes('taupe') || lower.includes('褐灰')) return '#483C32';
-  if (lower.includes('black') || lower.includes('黑')) return '#000000';
-  if (lower.includes('purple') || lower.includes('紫')) return '#9370DB';
-  if (lower.includes('lavender') || lower.includes('薰衣草')) return '#E6E6FA';
-  return '#CCCCCC'; 
-};
+const ResultDisplay: React.FC<ResultDisplayProps> = ({ 
+  data, 
+  loading, 
+  onRetry,
+  userGender, 
+  userStyle,
+  targetDay,
+  timeOfDay
+}) => {
+  
+  // 整理單品資料 (包含顏色 Hex 與對應圖示)
+  const displayItems = useMemo(() => {
+    if (!data?.outfit?.items) return [];
+    return data.outfit.items.map(item => ({
+      ...item,
+      hexColor: getColorHex(item.color),
+      IconComponent: getIconComponent(item.name)
+    }));
+  }, [data]);
 
-// 強制變色 renderIcon
-const renderIcon = (iconKey: string, colorHex: string) => {
-  const style = { 
-      color: colorHex, 
-      fill: colorHex, 
-      stroke: colorHex,
-      filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.6))' 
-  };
-  const props = { className: "w-full h-full", style, color: colorHex }; 
+  // 整理色票 (Color Palette)
+  const colorPalette = useMemo(() => {
+    if (!data?.outfit?.color_palette) return [];
+    return data.outfit.color_palette.map(colorName => ({
+      name: colorName,
+      hex: getColorHex(colorName)
+    }));
+  }, [data]);
 
-  switch (iconKey.toLowerCase()) {
-    case 't-shirt': return <TShirtIcon {...props} />;
-    case 'shirt': case 'polo': return <ShirtIcon {...props} />;
-    case 'sweater': return <SweaterIcon {...props} />;
-    case 'hoodie': return <HoodieIcon {...props} />;
-    case 'jacket': return <JacketIcon {...props} />;
-    case 'coat': return <CoatIcon {...props} />;
-    case 'pants': return <PantsIcon {...props} />;
-    case 'shorts': return <ShortsIcon {...props} />;
-    case 'skirt': return <SkirtIcon {...props} />;
-    case 'dress': return <DressIcon {...props} />;
-    case 'sneakers': return <SneakerIcon {...props} />;
-    case 'boots': return <BootIcon {...props} />;
-    case 'formal': case 'formal-shoes': return <FormalShoeIcon {...props} />;
-    case 'sandals': case 'heels': return <SandalsIcon {...props} />;
-    case 'bag': return <BagIcon {...props} />;
-    case 'umbrella': return <UmbrellaIcon {...props} />;
-    case 'hat': return <HatIcon {...props} />;
-    case 'scarf': return <ScarfIcon {...props} />;
-    case 'glasses': return <GlassesIcon {...props} />;
-    case 'watch': return <WatchIcon {...props} />;
-    default: return <GenericClothingIcon {...props} />;
+  // 時間顯示邏輯
+  const timeLabel = targetDay === 'today' ? '今天' : '明天';
+  const periodLabel = 
+    timeOfDay === 'current' ? '現在' :
+    timeOfDay === 'morning' ? '早上' :
+    timeOfDay === 'afternoon' ? '下午' : '晚上';
+
+  if (loading) {
+    return (
+      <div className="w-full max-w-md mx-auto p-8 flex flex-col items-center justify-center min-h-[400px] text-slate-300">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-400 mb-4"></div>
+        <p className="text-lg animate-pulse">AI 造型師正在分析天氣與您的色彩季型...</p>
+        <p className="text-sm text-slate-500 mt-2">正在配對：{data?.weather?.location || '台灣'} 的氣溫與穿搭</p>
+      </div>
+    );
   }
-};
 
-const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
-  const WeatherIcon = useMemo(() => {
-    const desc = data.weather.description.toLowerCase();
-    const rainProbStr = String(data.weather.rainProb || '0');
-    const rainProb = parseInt(rainProbStr.replace('%', '')) || 0;
-    if (desc.includes('雨') || desc.includes('rain') || rainProb > 40) {
-      return <CloudRainIcon className="w-20 h-20 md:w-24 md:h-24 text-blue-400 drop-shadow-2xl" />;
-    }
-    return <SunIcon className="w-20 h-20 md:w-24 md:h-24 text-amber-400 drop-shadow-2xl" />;
-  }, [data.weather]);
-
-  const getStyleLabel = (index: number) => {
-    const labels = ["✨ 推薦搭配", "🔥 混搭靈感", "🌿 氛圍參考"];
-    return labels[index] || `Style ${index + 1}`;
-  };
+  if (!data) return null;
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-xl shadow-blue-100/50 dark:shadow-black/50 overflow-hidden relative border border-slate-100 dark:border-slate-800">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-50/50 dark:bg-blue-900/10 rounded-full filter blur-3xl translate-x-1/2 -translate-y-1/2"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-yellow-50/50 dark:bg-yellow-900/10 rounded-full filter blur-3xl -translate-x-1/2 translate-y-1/2"></div>
-        
-        <div className="relative z-10 p-6 flex flex-col md:flex-row items-center md:items-stretch justify-between gap-6">
-          <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left space-y-2 w-full">
-            <span className="text-slate-500 dark:text-slate-400 text-xs font-bold tracking-widest uppercase bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
-              Selected Time
-            </span>
-            <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white tracking-tight leading-tight">
-              {data.location}
-            </h2>
-            <p className="text-base text-slate-600 dark:text-slate-300 font-medium">{data.weather.description}</p>
-            
-            {/* 🔥 2x2 Grid 顯示濕度 */}
-            <div className="mt-4 w-full grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-2 md:divide-x divide-slate-200 dark:divide-slate-700">
-               <div className="text-center px-1">
-                 <div className="text-3xl font-bold text-slate-800 dark:text-white truncate">
-                   {data.weather.temperature.split(' ')[0]}
-                 </div>
-                 <div className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mt-1">氣溫</div>
-               </div>
-               <div className="text-center px-1">
-                 <div className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 truncate">
-                   {data.weather.feelsLike || data.weather.temperature.split(' ')[0]}
-                 </div>
-                 <div className="text-xs text-indigo-500 dark:text-indigo-300 font-medium uppercase tracking-wider mt-1">體感</div>
-               </div>
-               {/* 濕度 */}
-               <div className="text-center px-1">
-                 <div className="text-3xl font-bold text-cyan-600 dark:text-cyan-400 truncate">
-                   {data.weather.humidity || "N/A"}
-                 </div>
-                 <div className="text-xs text-cyan-600 dark:text-cyan-300 font-medium uppercase tracking-wider mt-1">濕度</div>
-               </div>
-               <div className="text-center px-1">
-                 <div className="text-3xl font-bold text-slate-800 dark:text-white truncate">
-                   {data.weather.rainProb}
-                 </div>
-                 <div className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mt-1">降雨率</div>
-               </div>
-            </div>
+    <div className="w-full max-w-md mx-auto space-y-6 pb-20 animate-fade-in">
+      
+      {/* 1. 天氣卡片 (Weather Card) */}
+      <div className="bg-slate-800/80 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-slate-700 text-white relative overflow-hidden">
+        {/* 背景裝飾 */}
+        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-blue-500 rounded-full opacity-20 blur-xl"></div>
+        <div className="absolute bottom-0 left-0 -mb-4 -ml-4 w-20 h-20 bg-purple-500 rounded-full opacity-20 blur-xl"></div>
 
-            {data.weather.advice && (
-               <div className="mt-4 w-full bg-amber-50 dark:bg-slate-800 border border-amber-100 dark:border-amber-900/30 rounded-xl p-4 text-sm text-amber-900 dark:text-amber-100 text-left shadow-sm flex gap-3 items-start">
-                  <div className="shrink-0 mt-0.5 text-lg">💡</div>
-                  <div className="leading-relaxed font-medium opacity-90">{data.weather.advice}</div>
-               </div>
-            )}
+        <div className="relative z-10">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-slate-700/50 border border-slate-600 text-xs font-medium text-blue-300 mb-2">
+                <span className="w-2 h-2 rounded-full bg-blue-400 mr-2 animate-pulse"></span>
+                SELECTED TIME
+              </div>
+              <h2 className="text-3xl font-bold tracking-tight text-white">
+                {data.weather.location.split(',')[0]}
+              </h2>
+              <p className="text-slate-400 text-sm mt-1 flex items-center">
+                {timeLabel} {periodLabel} • {data.weather.condition}
+              </p>
+            </div>
+            {/* 天氣圖示 */}
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
+               <CloudRainIcon className="w-8 h-8 text-white" />
+            </div>
           </div>
-          <div className="flex-shrink-0 p-2 animate-blob transform scale-90 md:scale-100">{WeatherIcon}</div>
+
+          {/* 氣溫數據 Grid */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="text-center p-3 rounded-2xl bg-slate-700/30 border border-slate-700/50 backdrop-blur-sm">
+              <div className="flex justify-center mb-2 text-blue-300"><ThermometerIcon size={20} /></div>
+              <div className="text-2xl font-bold">{data.weather.temperature}°C</div>
+              <div className="text-xs text-slate-400 mt-1">氣溫</div>
+            </div>
+            <div className="text-center p-3 rounded-2xl bg-slate-700/30 border border-slate-700/50 backdrop-blur-sm">
+              <div className="flex justify-center mb-2 text-purple-300"><WindIcon size={20} /></div>
+              <div className="text-2xl font-bold">{data.weather.feels_like}°C</div>
+              <div className="text-xs text-slate-400 mt-1">體感</div>
+            </div>
+            <div className="text-center p-3 rounded-2xl bg-slate-700/30 border border-slate-700/50 backdrop-blur-sm">
+              <div className="flex justify-center mb-2 text-cyan-300"><DropletsIcon size={20} /></div>
+              <div className="text-2xl font-bold">{data.weather.precipitation}</div>
+              <div className="text-xs text-slate-400 mt-1">降雨率</div>
+            </div>
+          </div>
+
+          {/* 穿搭小建議 (AI Advice) */}
+          {data.outfit.tips && (
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-sm leading-relaxed">
+              <div className="mt-0.5 min-w-[16px]">💡</div>
+              <p>{data.outfit.tips}</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 圖片 (保持不變) */}
-      {data.generatedImages && data.generatedImages.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-             <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Style Inspiration</h3>
+      {/* 2. 色票卡片 (Color Palette) */}
+      <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50">
+        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Color Palette</h3>
+        <div className="flex items-center gap-4">
+          {colorPalette.map((color, idx) => (
+            <div key={idx} className="group relative">
+              <div 
+                className="w-10 h-10 rounded-full border-2 border-white/10 shadow-lg transform transition-transform group-hover:scale-110"
+                style={{ backgroundColor: color.hex }}
+                title={color.name}
+              />
+              {/* Tooltip */}
+              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-20">
+                {color.name}
+              </div>
+            </div>
+          ))}
+          <div className="h-8 w-px bg-slate-700 mx-2"></div>
+          <p className="text-xs text-slate-400 leading-relaxed flex-1">
+            {data.outfit.reason}
+          </p>
+        </div>
+      </div>
+
+      {/* 3. 穿搭單品 Grid (Outfit Items) */}
+      <div className="grid grid-cols-2 gap-4">
+        {displayItems.map((item, index) => (
+          <div 
+            key={index}
+            className="group bg-slate-800 rounded-2xl p-5 border border-slate-700 hover:border-blue-500/50 transition-all hover:shadow-lg hover:shadow-blue-500/10 flex flex-col items-center text-center relative overflow-hidden"
+          >
+            {/* 頂部光暈 */}
+            <div 
+              className="absolute top-0 left-0 w-full h-1 opacity-50"
+              style={{ backgroundColor: item.hexColor }}
+            />
+            
+            {/* 圖示 (強制上色) */}
+            <div className="mb-4 p-3 rounded-full bg-slate-900/50 ring-1 ring-white/5 group-hover:ring-white/20 transition-all">
+              <item.IconComponent 
+                size={32} 
+                color={item.hexColor} // 直接傳入 hex 顏色給 SVG
+                style={{ color: item.hexColor }} // 雙重保險
+              />
+            </div>
+
+            {/* 色名標籤 */}
+            <div className="inline-block px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-[10px] text-slate-400 mb-2">
+              {item.color}
+            </div>
+
+            {/* 單品名稱 */}
+            <h4 className="text-white font-medium text-base mb-1">
+              {item.name}
+            </h4>
+
+            {/* 單品描述 */}
+            <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed group-hover:text-slate-400 transition-colors">
+              {item.material}材質，{item.reason}
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {data.generatedImages.map((img, index) => (
-              <div key={index} className="bg-white dark:bg-slate-800 rounded-2xl p-2 shadow-lg border border-slate-100 dark:border-slate-700 overflow-hidden group">
-                <div className="relative aspect-[3/4] w-full rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900">
-                   <img src={img} alt="Outfit" className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
-                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-10">
-                      <div className="text-white text-xs font-bold shadow-sm tracking-wide">{getStyleLabel(index)}</div>
-                   </div>
-                </div>
+        ))}
+      </div>
+
+      {/* 4. 圖片展示區 (Generated Images) */}
+      {data.generatedImages && data.generatedImages.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Style Inspiration</h3>
+            <span className="text-xs text-slate-600">Powered by Pexels</span>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            {/* 第一張大圖 */}
+            <div className="col-span-2 aspect-[16/9] rounded-2xl overflow-hidden border border-slate-700 relative group">
+              <img 
+                src={data.generatedImages[0].src.large} 
+                alt={data.generatedImages[0].alt}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                <p className="text-white text-sm font-medium line-clamp-1">{data.generatedImages[0].alt}</p>
+              </div>
+            </div>
+
+            {/* 下方小圖 */}
+            {data.generatedImages.slice(1, 3).map((img, idx) => (
+              <div key={idx} className="aspect-[4/3] rounded-2xl overflow-hidden border border-slate-700 relative group">
+                <img 
+                  src={img.src.medium} 
+                  alt={img.alt}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* 色票 */}
-      {data.outfit.colorPalette && data.outfit.colorPalette.length > 0 && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-100 dark:border-slate-700">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Color Palette</h3>
-          </div>
-          <div className="flex flex-col md:flex-row gap-4 md:items-center">
-            <div className="flex items-center gap-2">
-              {data.outfit.colorPalette.map((color, idx) => (
-                <div key={idx} className="group relative">
-                  <div 
-                    className="w-10 h-10 rounded-full shadow-lg border-2 border-white dark:border-slate-600 ring-1 ring-slate-100 dark:ring-slate-700 transition-transform transform hover:scale-110 hover:z-10 cursor-pointer relative z-10"
-                    style={{ backgroundColor: getColorHex(color), opacity: 1, isolation: 'isolate' }} 
-                  ></div>
-                  <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 text-xs bg-slate-800 text-white px-2 py-1 rounded transition-opacity whitespace-nowrap z-20 pointer-events-none">
-                    {color}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="flex-1 pl-0 md:pl-4 border-l-0 md:border-l border-slate-100 dark:border-slate-700">
-              <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                {data.outfit.colorDescription}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 重新整理按鈕 */}
+      <button 
+        onClick={onRetry}
+        className="w-full py-4 rounded-2xl bg-slate-800 border border-slate-700 text-slate-400 font-medium hover:bg-slate-700 hover:text-white transition-all flex items-center justify-center gap-2 group"
+      >
+        <span className="group-hover:rotate-180 transition-transform duration-500">↻</span>
+        生成新的穿搭建議
+      </button>
 
-      {/* 單品列表 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {data.outfit.items.map((item, index) => (
-            <div key={index} className="group bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none border border-slate-100 dark:border-slate-700 hover:shadow-[0_8px_25px_rgb(0,0,0,0.06)] transition-all duration-300 flex flex-col items-center justify-between text-center h-full relative overflow-hidden">
-              <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent opacity-50"></div>
-              <div className="w-14 h-14 mb-3 relative">
-                 <div className="absolute inset-0 bg-slate-50 dark:bg-slate-700 rounded-full transform scale-0 group-hover:scale-100 transition-transform duration-300 ease-out"></div>
-                 <div className="relative z-10 w-full h-full p-2.5 transform group-hover:-translate-y-1 transition-transform duration-300">
-                   {renderIcon(item.icon, getColorHex(item.color))}
-                 </div>
-              </div>
-              <div className="w-full space-y-2">
-                <div><span className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] md:text-xs font-bold border border-slate-200 dark:border-slate-600 rounded-full">{item.color}</span></div>
-                <p className="font-bold text-slate-800 dark:text-white text-sm md:text-base leading-tight">{item.item}</p>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed px-1 pb-1">{item.reason}</p>
-              </div>
-            </div>
-          ))}
-      </div>
-
-      {/* 專家建議 */}
-      {data.outfit.tips && (
-        <div className="bg-slate-900 dark:bg-black text-white rounded-2xl p-6 shadow-xl shadow-slate-400/20 dark:shadow-none relative overflow-hidden border border-slate-800 dark:border-slate-900">
-          <div className="relative z-10 flex flex-col md:flex-row gap-4 items-start">
-             <div className="bg-white/10 p-2.5 rounded-xl">
-                <svg className="w-5 h-5 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-             </div>
-             <div>
-               <h4 className="font-bold text-sm mb-1 text-yellow-300">Stylist Note</h4>
-               <p className="text-slate-300 leading-relaxed font-light text-sm md:text-base">{data.outfit.tips}</p>
-             </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
