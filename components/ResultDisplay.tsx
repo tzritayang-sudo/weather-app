@@ -10,22 +10,55 @@ interface ResultDisplayProps {
   data: WeatherOutfitResponse;
 }
 
-// 🔥 高亮版色碼轉換 (專為深色模式優化)
+// 🔥 終極色碼轉換 (支援中文 + 英文 + 深色模式優化)
 const getColorHex = (colorName: string) => {
   const lower = colorName.toLowerCase();
-  if (lower.includes('electric blue')) return '#00FFFF';
-  if (lower.includes('hot pink')) return '#FF1493';
-  if (lower.includes('icy grey') || lower.includes('ice grey')) return '#F0F8FF';
-  if (lower.includes('emerald')) return '#2ECC71';
-  if (lower.includes('royal blue')) return '#4361EE';
-  if (lower.includes('mustard')) return '#FFD700';
-  if (lower.includes('rust')) return '#FF7F50';
-  if (lower.includes('sage')) return '#98FB98';
-  if (lower.includes('charcoal')) return '#36454F';
-  if (lower.includes('navy')) return '#000080';
-  if (lower.includes('white')) return '#FFFFFF';
-  if (lower.includes('black')) return '#000000';
-  return colorName;
+  
+  // 🟦 藍色系
+  if (lower.includes('electric blue') || lower.includes('電光藍') || lower.includes('藍')) return '#00FFFF'; 
+  if (lower.includes('royal blue') || lower.includes('寶石藍') || lower.includes('寶藍')) return '#4361EE';
+  if (lower.includes('navy') || lower.includes('海軍藍') || lower.includes('深藍')) return '#000080';
+  if (lower.includes('sky blue') || lower.includes('天藍')) return '#87CEEB';
+  if (lower.includes('teal') || lower.includes('孔雀藍') || lower.includes('湖水綠')) return '#008080';
+  
+  // 🟥 紅/粉色系
+  if (lower.includes('hot pink') || lower.includes('熱粉') || lower.includes('亮粉') || lower.includes('豔粉')) return '#FF1493';
+  if (lower.includes('red') || lower.includes('紅')) return '#FF0000';
+  if (lower.includes('burgundy') || lower.includes('酒紅')) return '#800020';
+  if (lower.includes('coral') || lower.includes('珊瑚')) return '#FF7F50';
+  if (lower.includes('salmon') || lower.includes('鮭魚')) return '#FA8072';
+
+  // ⬜ 灰/白色系
+  if (lower.includes('icy grey') || lower.includes('ice grey') || lower.includes('冰灰') || lower.includes('冰川灰')) return '#F0F8FF';
+  if (lower.includes('charcoal') || lower.includes('炭灰') || lower.includes('深灰')) return '#36454F';
+  if (lower.includes('grey') || lower.includes('gray') || lower.includes('灰')) return '#D3D3D3';
+  if (lower.includes('white') || lower.includes('白')) return '#FFFFFF';
+  
+  // 🟩 綠色系
+  if (lower.includes('emerald') || lower.includes('祖母綠')) return '#2ECC71';
+  if (lower.includes('sage') || lower.includes('鼠尾草') || lower.includes('灰綠')) return '#98FB98';
+  if (lower.includes('olive') || lower.includes('橄欖')) return '#808000';
+  if (lower.includes('green') || lower.includes('綠')) return '#008000';
+  if (lower.includes('mint') || lower.includes('薄荷')) return '#98FF98';
+
+  // 🟨 黃/橘/棕色系
+  if (lower.includes('mustard') || lower.includes('芥末')) return '#FFD700';
+  if (lower.includes('rust') || lower.includes('鐵鏽')) return '#B7410E';
+  if (lower.includes('yellow') || lower.includes('黃')) return '#FFFF00';
+  if (lower.includes('orange') || lower.includes('橘') || lower.includes('橙')) return '#FFA500';
+  if (lower.includes('brown') || lower.includes('棕') || lower.includes('褐')) return '#A52A2A';
+  if (lower.includes('beige') || lower.includes('米色') || lower.includes('杏色')) return '#F5F5DC';
+  if (lower.includes('camel') || lower.includes('駝色')) return '#C19A6B';
+  if (lower.includes('khaki') || lower.includes('卡其')) return '#F0E68C';
+
+  // ⬛ 黑色系
+  if (lower.includes('black') || lower.includes('黑')) return '#000000';
+  
+  // 🟣 紫色系
+  if (lower.includes('purple') || lower.includes('紫')) return '#800080';
+  if (lower.includes('lavender') || lower.includes('薰衣草')) return '#E6E6FA';
+  
+  return '#CCCCCC'; // 預設灰色，避免空心
 };
 
 const renderIcon = (iconKey: string) => {
@@ -88,7 +121,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
             </h2>
             <p className="text-base text-slate-600 dark:text-slate-300 font-medium">{data.weather.description}</p>
             
-            {/* 🔥 手機版排版修復：使用 Grid 平分空間，防止擠壓 */}
+            {/* 手機版排版修復 */}
             <div className="mt-4 w-full grid grid-cols-3 gap-2 divide-x divide-slate-200 dark:divide-slate-700">
                <div className="text-center px-1">
                  <div className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white truncate">
