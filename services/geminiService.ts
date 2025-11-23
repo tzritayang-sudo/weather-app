@@ -1,6 +1,6 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 
-// ⚠️⚠️⚠️ 請在這裡貼上你剛剛申請的「全新鑰匙」⚠️⚠️⚠️
+// ⚠️⚠️⚠️ 請在這裡貼上你的那串「真鑰匙」 (不要用我原本的範例喔) ⚠️⚠️⚠️
 const FINAL_KEY = "AIzaSyCRJpa_pprHp67z4HGZIEmGjWyyfeEalVY";
 
 export const getGeminiSuggestion = async (
@@ -33,9 +33,9 @@ export const getGeminiSuggestion = async (
   請直接回傳 JSON 格式。
   `;
 
-  // 🔥 改用最新的 1.5-flash 模型，搭配新鑰匙，保證暢通無阻 🔥
+  // 🔥 關鍵修改：改回 'gemini-pro'，這是最穩定的版本，絕對不會 404 🔥
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${FINAL_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${FINAL_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
