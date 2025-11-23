@@ -2,27 +2,28 @@ import React, { useMemo } from 'react';
 import { 
   CloudRainIcon, 
   SunIcon, 
-  TShirtIcon,
-  ShirtIcon,
-  HoodieIcon,
-  SweaterIcon,
-  JacketIcon,
-  CoatIcon,
-  PantsIcon,
-  ShortsIcon,
-  SkirtIcon,
-  DressIcon,
-  SneakerIcon,
-  BootIcon,
-  FormalShoeIcon,
-  SandalsIcon,
-  ScarfIcon,
-  HatIcon,
-  BagIcon,
-  GlassesIcon,
-  WatchIcon,
-  GenericClothingIcon,
-  UmbrellaIcon
+  TShirtIcon, 
+  ShirtIcon, 
+  HoodieIcon, 
+  SweaterIcon, 
+  JacketIcon, 
+  CoatIcon, 
+  PantsIcon, 
+  ShortsIcon, 
+  SkirtIcon, 
+  DressIcon, 
+  SneakerIcon, 
+  BootIcon, 
+  FormalShoeIcon, 
+  SandalsIcon, 
+  ScarfIcon, 
+  HatIcon, 
+  BagIcon, 
+  GlassesIcon, 
+  WatchIcon, 
+  GenericClothingIcon, 
+  UmbrellaIcon,
+  SearchIcon // 確保你的 Icons.tsx 有匯出這個 (沒有的話用 Generic 也可以)
 } from './Icons';
 import { WeatherOutfitResponse } from '../types';
 
@@ -30,6 +31,7 @@ interface ResultDisplayProps {
   data: WeatherOutfitResponse;
 }
 
+// 圖標渲染邏輯 (保持原樣)
 const renderIcon = (iconKey: string) => {
   const props = { className: "w-full h-full" };
   switch (iconKey.toLowerCase()) {
@@ -74,9 +76,9 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
 
   const getStyleLabel = (index: number) => {
     switch(index) {
-      case 0: return "✨ 標準搭配 (Main)";
-      case 1: return "🔥 時尚風格 (Trendy)";
-      case 2: return "🌿 氛圍感 (Relaxed)";
+      case 0: return "✨ Style A";
+      case 1: return "🔥 Style B";
+      case 2: return "🌿 Style C";
       default: return `Style ${index + 1}`;
     }
   };
@@ -84,15 +86,15 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
   return (
     <div className="space-y-5 animate-fade-in pb-12">
       
-      {/* 1. Weather Widget with Feels Like & Forecast */}
+      {/* 1. 天氣卡片區塊 */}
       <div className="bg-white rounded-[2rem] shadow-xl shadow-blue-100/50 overflow-hidden relative border border-slate-50">
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-50/50 rounded-full filter blur-3xl translate-x-1/2 -translate-y-1/2"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-yellow-50/50 rounded-full filter blur-3xl -translate-x-1/2 translate-y-1/2"></div>
         
         <div className="relative z-10 p-6 flex flex-col md:flex-row items-center md:items-stretch justify-between gap-6">
           
-          {/* Current Weather */}
-          <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left space-y-2">
+          {/* 主要天氣資訊 */}
+          <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left space-y-2 w-full">
             <span className="text-slate-400 text-xs font-bold tracking-widest uppercase bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100">
               Selected Time
             </span>
@@ -101,7 +103,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
             </h2>
             <p className="text-base text-slate-500 font-medium">{data.weather.description}</p>
             
-            <div className="mt-2 flex items-center gap-6">
+            <div className="mt-2 flex items-center justify-center md:justify-start gap-6">
                <div className="text-center">
                  <div className="text-3xl font-bold text-slate-800">{data.weather.temperature.split(' ')[0]}</div>
                  <div className="text-xs text-slate-400 font-medium">氣溫</div>
@@ -117,6 +119,14 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
                  <div className="text-xs text-slate-400 font-medium">降雨率</div>
                </div>
             </div>
+
+            {/* 🔥 新增：氣象小叮嚀 (Advice) */}
+            {data.weather.advice && (
+               <div className="mt-4 w-full bg-amber-50 border border-amber-100 rounded-xl p-3 text-sm text-amber-800 text-left shadow-sm flex gap-3 items-start">
+                  <div className="shrink-0 mt-0.5">💡</div>
+                  <div className="leading-relaxed">{data.weather.advice}</div>
+               </div>
+            )}
           </div>
 
           <div className="flex-shrink-0 p-2 animate-blob transform scale-90 md:scale-100">
@@ -124,7 +134,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
           </div>
         </div>
 
-        {/* 3-Day Forecast Section */}
+        {/* 三日預報 */}
         {data.weather.forecast && data.weather.forecast.length > 0 && (
            <div className="relative z-10 border-t border-slate-100 bg-slate-50/50 p-4">
               <div className="grid grid-cols-3 gap-2 divide-x divide-slate-200/50">
@@ -141,11 +151,11 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
         )}
       </div>
 
-      {/* 2. Generated Outfit Images (3 Distinct Variations) */}
+      {/* 2. 圖片展示區 (包含外部搜尋按鈕) */}
       {data.generatedImages && data.generatedImages.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
-             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Style Inspiration</h3>
+             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Style Inspiration (from Pexels)</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {data.generatedImages.map((img, index) => (
@@ -153,7 +163,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
                 <div className="relative aspect-[3/4] w-full rounded-xl overflow-hidden bg-slate-100">
                    <img 
                      src={img} 
-                     alt={`AI Generated Outfit ${index + 1}`} 
+                     alt={`Outfit Inspiration ${index + 1}`} 
                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
                    />
                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 pt-10">
@@ -162,13 +172,33 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
                       </div>
                    </div>
                 </div>
+                
+                {/* 🔥 新增：針對這張圖的關鍵字，一鍵去外部搜尋 */}
+                <div className="mt-2 px-1 flex gap-2">
+                   <a 
+                     href={`https://www.pinterest.com/search/pins/?q=${encodeURIComponent(data.outfit.visualPrompts?.[index] || data.outfit.items[0].color + " fashion")}`}
+                     target="_blank"
+                     rel="noreferrer"
+                     className="flex-1 text-center text-[10px] py-1.5 rounded-lg bg-slate-50 hover:bg-red-50 text-slate-500 hover:text-red-600 transition-colors font-medium border border-slate-100"
+                   >
+                     📌 Pinterest
+                   </a>
+                   <a 
+                     href={`https://www.instagram.com/explore/tags/${encodeURIComponent((data.outfit.items[0].color + "outfit").replace(/\s/g, ''))}`}
+                     target="_blank"
+                     rel="noreferrer"
+                     className="flex-1 text-center text-[10px] py-1.5 rounded-lg bg-slate-50 hover:bg-pink-50 text-slate-500 hover:text-pink-600 transition-colors font-medium border border-slate-100"
+                   >
+                     📷 Instagram
+                   </a>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* 3. Color Analysis Palette Bar */}
+      {/* 3. 色票區 (保持原樣) */}
       {data.outfit.colorPalette && data.outfit.colorPalette.length > 0 && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-3">
@@ -197,7 +227,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
         </div>
       )}
 
-      {/* 4. Outfit Gallery Items */}
+      {/* 4. 單品列表 (保持原樣) */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {data.outfit.items.map((item, index) => (
             <div 
@@ -226,7 +256,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ data }) => {
           ))}
         </div>
 
-      {/* 5. Pro Tip Card */}
+      {/* 5. 專家建議 (Stylist Note) */}
       {data.outfit.tips && (
         <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl shadow-slate-400/20 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-48 h-48 bg-white opacity-5 rounded-full blur-3xl pointer-events-none"></div>
