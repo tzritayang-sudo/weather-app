@@ -3,6 +3,9 @@ import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay
 // ⚠️⚠️⚠️ 這是你的真鑰匙，請確認它在這裡 ⚠️⚠️⚠️
 const FINAL_KEY = "AIzaSyAAwDoWIrkVJppg9jmzvKMqNrfaka57JJY"; // 請確認引號內是你真正的鑰匙
 
+// --- 這是最終的、最穩定的模型名稱 ---
+const MODEL_NAME = "gemini-2.5-flash"; 
+
 export const getGeminiSuggestion = async (
   apiKey: string, 
   location: string,
@@ -19,7 +22,7 @@ export const getGeminiSuggestion = async (
   const fullTimeContext = `${dayLabel} ${timeOfDay}`;
 
   const prompt = `
-  你是一個頂尖的時尚造型師與氣象專家。
+  你是一個頂尖的時尚造型師與氣象專家。請嚴格只回傳 JSON 格式。
   【使用者資料】
   1. 地點：${location}。
   2. 目標時間：${fullTimeContext}。
@@ -30,12 +33,12 @@ export const getGeminiSuggestion = async (
   1. 分析天氣。
   2. 提供穿搭建議 (items)。
   3. 產生 3 組 visualPrompts。
-  請直接回傳 JSON 格式。
+  請直接回傳 JSON 格式，不要包含 Markdown 標記 (如 \`\`\`json)。
   `;
 
-  // 🔥 關鍵修改：改用 'gemini-2.5-flash'，這是目前最新、最可靠的模型 🔥
+  // 🔥 關鍵修改：URL 已換成 gemini-2.5-flash 🔥
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${FINAL_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${FINAL_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
