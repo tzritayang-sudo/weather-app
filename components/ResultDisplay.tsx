@@ -8,16 +8,35 @@ import {
   Glasses,
   Wind,
   Watch,
-  Layers, // 改用 Layers 代表下身
-  CloudFog,
-  Thermometer,
-  Droplets
+  User,
+  Briefcase,
+  Layers
 } from 'lucide-react';
 import { WeatherOutfitResponse, Style, Gender, TargetDay, TimeOfDay } from '../types';
+
+// 🔥 自製的褲子圖示 (SVG) - 解決 Lucide 沒有褲子的問題
+const PantsIcon = ({ size = 24, color = "currentColor", ...props }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke={color} 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    {...props}
+  >
+    <path d="M4 4h16v2a2 2 0 0 1-2 2h-1l-1 12a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2L7 8H6a2 2 0 0 1-2-2V4z" />
+    <path d="M12 8v14" />
+  </svg>
+);
 
 const getColorHex = (colorName: string): string => {
   const name = colorName ? colorName.toLowerCase().trim() : '';
   
+  // 黑白優先，避免誤判
   if (name.includes('black') || name.includes('黑')) return '#0f172a'; // 深黑
   if (name.includes('white') || name.includes('白')) return '#f8fafc'; // 純白
   
@@ -45,8 +64,8 @@ const getIconComponent = (type: string | undefined, name: string | undefined) =>
   if (t.includes('watch') || n.includes('錶') || n.includes('watch')) return Watch;
   if (t.includes('shoe') || n.includes('鞋') || n.includes('靴')) return Footprints;
   
-  // 褲子/裙子：改用 Layers (折疊感)，這是 Lucide 中最適合代表"下身/褲裝"的抽象圖示
-  if (t.includes('pant') || n.includes('褲') || t.includes('skirt') || n.includes('裙')) return Layers;
+  // 褲子/裙子：使用自製的 PantsIcon
+  if (t.includes('pant') || n.includes('褲') || t.includes('skirt') || n.includes('裙') || t.includes('jeans')) return PantsIcon;
 
   if (t.includes('jacket') || n.includes('外套') || n.includes('大衣')) return Wind;
   if (t.includes('bag') || n.includes('包')) return ShoppingBag;
@@ -118,44 +137,44 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
   return (
     <div className="w-full max-w-md mx-auto space-y-6 pb-20 animate-fade-in">
       
-      {/* 天氣卡片 */}
-      <div className="bg-slate-800/90 backdrop-blur-md rounded-3xl p-5 shadow-xl border border-slate-700 text-white relative overflow-hidden">
+      {/* 天氣卡片 (字體放大) */}
+      <div className="bg-slate-800/90 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-slate-700 text-white relative overflow-hidden">
         <div className="relative z-10">
-          <div className="flex justify-between items-start mb-4">
+          <div className="flex justify-between items-start mb-5">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight text-white">{shownLocation}</h2>
-              <p className="text-slate-400 text-xs mt-1">
+              <h2 className="text-3xl font-bold tracking-tight text-white">{shownLocation}</h2>
+              <p className="text-slate-400 text-sm mt-1">
                 {timeLabel} {periodLabel} • {data.weather.condition}
               </p>
             </div>
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
-              <CloudRain className="w-6 h-6 text-white" />
+            <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+              <CloudRain className="w-7 h-7 text-white" />
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 text-center mb-4">
-            <div className="bg-slate-700/40 p-2 rounded-xl border border-slate-600/30">
-              <div className="text-[10px] text-slate-400 mb-1">現在</div>
-              <div className="text-lg font-bold text-yellow-300">{data.weather.temperature}°</div>
+          <div className="grid grid-cols-4 gap-3 text-center mb-5">
+            <div className="bg-slate-700/40 p-3 rounded-xl border border-slate-600/30">
+              <div className="text-[11px] text-slate-400 mb-1">現在</div>
+              <div className="text-xl font-bold text-yellow-300">{data.weather.temperature}°</div>
             </div>
-            <div className="bg-slate-700/40 p-2 rounded-xl border border-slate-600/30">
-              <div className="text-[10px] text-slate-400 mb-1">高/低</div>
-              <div className="text-xs font-bold mt-1">
+            <div className="bg-slate-700/40 p-3 rounded-xl border border-slate-600/30">
+              <div className="text-[11px] text-slate-400 mb-1">高/低</div>
+              <div className="text-sm font-bold mt-1">
                 {data.weather.maxtempC}°/{data.weather.mintempC}°
               </div>
             </div>
-            <div className="bg-slate-700/40 p-2 rounded-xl border border-slate-600/30">
-              <div className="text-[10px] text-slate-400 mb-1">濕度</div>
-              <div className="text-lg font-bold text-cyan-300">{data.weather.humidity}</div>
+            <div className="bg-slate-700/40 p-3 rounded-xl border border-slate-600/30">
+              <div className="text-[11px] text-slate-400 mb-1">濕度</div>
+              <div className="text-xl font-bold text-cyan-300">{data.weather.humidity}</div>
             </div>
-            <div className="bg-slate-700/40 p-2 rounded-xl border border-slate-600/30">
-              <div className="text-[10px] text-slate-400 mb-1">降雨</div>
-              <div className="text-lg font-bold text-blue-300">{data.weather.precipitation}</div>
+            <div className="bg-slate-700/40 p-3 rounded-xl border border-slate-600/30">
+              <div className="text-[11px] text-slate-400 mb-1">降雨</div>
+              <div className="text-xl font-bold text-blue-300">{data.weather.precipitation}</div>
             </div>
           </div>
 
           {data.outfit.tips && (
-            <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs leading-relaxed">
+            <div className="mt-2 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-sm leading-relaxed">
               💡 {data.outfit.tips}
             </div>
           )}
@@ -163,26 +182,26 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
       </div>
 
       {/* 單品卡片 */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4">
         {displayItems.map((item: any, index: number) => (
           <div
             key={index}
-            className="bg-slate-800 rounded-2xl p-4 border border-slate-700 flex flex-col items-center text-center relative overflow-hidden shadow-sm min-h-[140px] justify-center"
+            className="bg-slate-800 rounded-2xl p-5 border border-slate-700 flex flex-col items-center text-center relative overflow-hidden shadow-sm min-h-[160px] justify-center"
           >
             <div
               className="absolute top-0 left-0 w-full h-1 opacity-70"
               style={{ backgroundColor: item.hexColor }}
             />
-            {/* 🔥 強制加上 border-2 border-white/20，確保黑色圖示依然可見 */}
-            <div className="mb-3 p-3 rounded-full bg-slate-900/80 border-2 border-white/20 shadow-lg">
-              <item.IconComponent size={28} style={{ color: item.hexColor }} />
+            {/* 🔥 強制加上 border-2 border-white/30 */}
+            <div className="mb-4 p-3.5 rounded-full bg-slate-900/80 border-2 border-white/30 shadow-lg">
+              <item.IconComponent size={32} style={{ color: item.hexColor }} />
             </div>
-            <div className="w-full flex flex-col gap-1">
-              <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 text-slate-400 self-center border border-slate-700/50">
+            <div className="w-full flex flex-col gap-1.5">
+              <span className="text-[11px] px-2.5 py-0.5 rounded bg-slate-900 text-slate-400 self-center border border-slate-700/50">
                 {item.color}
               </span>
-              <h4 className="text-white font-medium text-sm leading-tight mt-1">{item.name}</h4>
-              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed line-clamp-1">
+              <h4 className="text-white font-bold text-base leading-tight mt-1">{item.name}</h4>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed line-clamp-1">
                 {item.material}
               </p>
             </div>
@@ -191,22 +210,21 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
       </div>
 
       {/* 色票 */}
-      <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 flex flex-col items-center">
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+      <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-6 border border-slate-700/50 flex flex-col items-center">
+        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
           推薦配色 Palette
         </h3>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {colorPalette.map((color, idx) => (
             <div
               key={idx}
-              // 🔥 強制加上 border-2 border-white/20
-              className="w-8 h-8 rounded-full border-2 border-white/20 shadow-lg"
+              className="w-10 h-10 rounded-full border-2 border-white/30 shadow-lg"
               style={{ backgroundColor: color.hex }}
               title={color.name || 'Color'}
             />
           ))}
         </div>
-        <div className="flex gap-2 mt-2 text-[10px] text-slate-500">
+        <div className="flex gap-3 mt-3 text-xs text-slate-500">
           {colorPalette.slice(0, 4).map((c, i) => (
             <span key={i}>{c.name}</span>
           ))}
@@ -215,7 +233,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
 
       <button
         onClick={onRetry}
-        className="w-full py-4 bg-slate-800 text-slate-200 font-bold text-base rounded-2xl border-b-4 border-slate-950 shadow-lg active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center gap-2 hover:bg-slate-700 hover:text-white"
+        className="w-full py-5 bg-slate-800 text-slate-200 font-bold text-lg rounded-2xl border-b-4 border-slate-950 shadow-lg active:border-b-0 active:translate-y-1 transition-all flex items-center justify-center gap-2 hover:bg-slate-700 hover:text-white"
       >
         <span>↺</span> 返回並重新生成
       </button>
