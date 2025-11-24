@@ -1,16 +1,6 @@
 import React, { useMemo } from 'react';
-import { CloudRain, Shirt, Footprints, ShoppingBag, Umbrella, Glasses, Wind, Watch, Thermometer, Droplets, Cloud, Sparkles } from 'lucide-react';
+import { CloudRain, Shirt, Footprints, ShoppingBag, Umbrella, Glasses, Wind, Watch, ThermometerSun, Droplets, Cloud, Sun, CloudLightning, Sparkles } from 'lucide-react';
 import { WeatherOutfitResponse } from '../types';
-
-// ----------------------------------------------------------------------
-// 輔助函式區
-// ----------------------------------------------------------------------
-
-const PantsIcon = ({ size = 24, color = "currentColor", ...props }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M6 4h12v3h-12z" /> <path d="M6 7v13a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-8h2v8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-13" />
-  </svg>
-);
 
 const translateWeather = (cond: string) => {
   if (!cond) return '多雲';
@@ -24,6 +14,12 @@ const translateWeather = (cond: string) => {
   if (c.includes('fog') || c.includes('mist')) return '有霧';
   return cond; 
 };
+
+const PantsIcon = ({ size = 24, color = "currentColor", ...props }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M6 4h12v3h-12z" /> <path d="M6 7v13a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-8h2v8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-13" />
+  </svg>
+);
 
 const getColorHex = (colorName: string): string => {
   if (!colorName) return '#cbd5e1';
@@ -40,7 +36,7 @@ const getColorHex = (colorName: string): string => {
   if (n.includes('burgundy') || n.includes('酒紅')) return '#881337';
   if (n.includes('red') || n.includes('紅')) return '#ef4444';
   if (n.includes('pink') || n.includes('粉') || n.includes('桃')) return '#f472b6';
-  if (n.includes('rose') || n.includes('玫瑰') || n.includes('洋紅')) return '#e11d48';
+  if (n.includes('rose') || n.includes('玫瑰')) return '#e11d48';
   if (n.includes('brown') || n.includes('褐') || n.includes('棕') || n.includes('焦糖')) return '#78350f';
   if (n.includes('camel') || n.includes('駝')) return '#d97706';
   if (n.includes('beige') || n.includes('米') || n.includes('杏')) return '#fef3c7';
@@ -68,15 +64,9 @@ const getIcon = (type: string | undefined, name: string | undefined) => {
   return Shirt;
 };
 
-// ----------------------------------------------------------------------
-// 主組件
-// ----------------------------------------------------------------------
-
 interface Props { data: WeatherOutfitResponse; loading: boolean; onRetry: () => void; displayLocation: string; isDarkMode: boolean; }
 
 const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocation, isDarkMode }) => {
-  
-  // 1. Hook 放在最前面，確保 React 執行順序
   const displayItems = useMemo(() => { 
     if (!data?.outfit?.items) return []; 
     return data.outfit.items.map((item: any) => ({ 
@@ -91,7 +81,6 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
     return data.outfit.color_palette.map((c: string) => ({ name: c, hex: getColorHex(c) })); 
   }, [data]);
 
-  // 2. 樣式定義
   const card = isDarkMode ? 'bg-slate-900/60 border border-white/10 backdrop-blur-2xl' : 'bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]';
   const itemCard = isDarkMode ? 'bg-white/5 border border-white/5 hover:bg-white/10' : 'bg-white border border-gray-100 hover:shadow-lg';
   const textMain = isDarkMode ? 'text-white' : 'text-gray-900';
@@ -102,26 +91,22 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
     ? 'bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10' 
     : 'bg-gradient-to-br from-blue-50 to-white border border-blue-100';
 
-  // 3. 🔥 關鍵修復：先檢查 loading 和 data，再做資料讀取，防止白屏
-  if (loading) return <div className={`text-center p-10 ${textSub} tracking-widest text-sm animate-pulse`}>AI 正在分析氣候與穿搭...</div>;
-  
-  // 如果沒有 data 或 weather 為空，顯示重試
-  if (!data || !data.weather) {
-    return null; // 或者 return <div className="text-center p-10">暫無資料</div>
-  }
+  if (loading) return <div className={`text-center p-10 ${textSub} tracking-widest text-sm animate-pulse`}>AI 分析中...</div>;
+  if (!data || !data.weather) return null;
 
-  // 4. 安全讀取資料
   const timeLabel = data.targetDay === 'tomorrow' ? '明天' : '現在';
   const weatherCondition = translateWeather(data.weather.condition || '');
-  const WeatherIcon = weatherCondition.includes('雨') ? CloudRain : Cloud;
+  
+  // 🌤️ 天氣圖示判斷優化
+  let WeatherIcon = Cloud;
+  if (weatherCondition.includes('雨')) WeatherIcon = CloudRain;
+  else if (weatherCondition.includes('雷')) WeatherIcon = CloudLightning;
+  else if (weatherCondition.includes('晴')) WeatherIcon = Sun;
 
   return (
     <div className="w-full max-w-md mx-auto space-y-8 pb-20 animate-fade-in-up">
       
-      {/* 🔥 高級天氣卡片 */}
       <div className={`rounded-[2.5rem] p-8 relative overflow-hidden ${weatherCardBg} shadow-xl`}>
-        
-        {/* 背景裝飾 */}
         <div className="absolute -right-10 -top-10 opacity-10 rotate-12 pointer-events-none">
           <WeatherIcon size={240} fill="currentColor" className={isDarkMode ? 'text-white' : 'text-blue-900'} />
         </div>
@@ -139,7 +124,6 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
             </div>
           </div>
 
-          {/* 溫度超大字體 */}
           <div className="mt-4 flex items-baseline gap-3">
             <div className={`text-[5rem] leading-none font-light tracking-tighter ${textMain}`}>
               {data.weather.temperature}°
@@ -150,12 +134,11 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
             </div>
           </div>
 
-          {/* 底部資訊：體感、濕度、降雨 */}
           <div className="mt-8 grid grid-cols-3 gap-4 border-t pt-6 border-dashed border-gray-400/20">
             <div className="flex flex-col gap-1">
               <span className={`text-[10px] uppercase tracking-wider font-bold opacity-60 ${textSub}`}>體感</span>
               <span className={`text-xl font-semibold flex items-center gap-1 ${textMain}`}>
-                <Thermometer size={18} className="opacity-70" /> 
+                <ThermometerSun size={18} className="opacity-70" /> 
                 {data.weather.feels_like || data.weather.temperature}°
               </span>
             </div>
@@ -175,15 +158,13 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
         </div>
       </div>
 
-      {/* 穿搭提示 */}
-      {data.outfit?.tips && (
+      {data.outfit.tips && (
         <div className={`p-6 rounded-3xl text-sm leading-relaxed tracking-wide border flex gap-3 ${isDarkMode ? 'bg-amber-900/20 border-amber-800/30 text-amber-100' : 'bg-amber-50 border-amber-100 text-amber-900'}`}>
           <Sparkles className="shrink-0 mt-0.5 text-amber-400" size={18} />
           {data.outfit.tips}
         </div>
       )}
 
-      {/* 單品卡片 */}
       <div className="grid grid-cols-2 gap-4">
         {displayItems.map((item: any, i: number) => {
           const isBlack = item.hexColor === '#1a1a1a';
@@ -205,7 +186,6 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
         })}
       </div>
 
-      {/* 配色 */}
       <div className={`rounded-[2rem] p-8 flex flex-col items-center text-center ${card}`}>
         <h3 className={`text-xs font-bold tracking-[0.25em] mb-6 uppercase ${textSub}`}>推薦配色</h3>
         <div className="flex gap-6">
@@ -215,17 +195,16 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
         </div>
       </div>
 
-      {/* 圖片 */}
       {data.generatedImages && data.generatedImages.length > 0 && (
         <div className="space-y-6 pt-2">
           <h3 className={`text-xs font-bold tracking-[0.25em] px-2 uppercase ${textSub}`}>穿搭靈感</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className={`col-span-2 aspect-[16/9] rounded-[2rem] overflow-hidden shadow-lg ${isDarkMode ? 'border border-white/10' : 'border border-gray-100'}`}>
-              <img src={data.generatedImages[0].src.large} alt="穿搭示意" className="w-full h-full object-cover" />
+              <img src={data.generatedImages[0].src.large} alt="Style" className="w-full h-full object-cover" />
             </div>
             {data.generatedImages.slice(1, 3).map((img: any) => (
               <div key={img.id} className={`aspect-[4/3] rounded-[2rem] overflow-hidden shadow-lg ${isDarkMode ? 'border border-white/10' : 'border border-gray-100'}`}>
-                <img src={img.src.medium} alt="細節" className="w-full h-full object-cover" />
+                <img src={img.src.medium} alt="Detail" className="w-full h-full object-cover" />
               </div>
             ))}
           </div>
