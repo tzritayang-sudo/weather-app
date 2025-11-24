@@ -13,7 +13,7 @@ const fetchPexelsImages = async (query: string) => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
   if (!PEXELS_API_KEY) return [];
   try {
-    const safeQuery = `${query} outfit street style high quality -warm -beige -orange -sepia`;
+    const safeQuery = `${query} fashion street style -warm -beige -orange`;
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQuery)}&per_page=3&orientation=portrait`;
     const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
     if (!response.ok) return [];
@@ -30,10 +30,16 @@ const fetchRealWeather = async (location: string) => {
     const response = await fetch(`https://wttr.in/${encodeURIComponent(searchLocation)}?format=j1`);
     if (!response.ok) throw new Error('Weather API Error');
     const data = await response.json();
-    const current = data.current_condition[0];
+    const today = data.weather[0];
+    
     return {
-      temp: parseInt(current.temp_C), condition: current.weatherDesc[0].value, humidity: parseInt(current.humidity),
-      feelsLike: parseInt(current.FeelsLikeC), precip: current.precipMM > 0 ? `${current.precipMM}mm` : '0%'
+      temp_C: parseInt(data.current_condition[0].temp_C),
+      FeelsLikeC: parseInt(data.current_condition[0].FeelsLikeC),
+      humidity: parseInt(data.current_condition[0].humidity),
+      maxtempC: parseInt(today.maxtempC),
+      mintempC: parseInt(today.mintempC),
+      chanceofrain: parseInt(today.hourly[0].chanceofrain),
+      condition: data.current_condition[0].weatherDesc[0].value
     };
   } catch (e) { return null; }
 };
@@ -53,38 +59,35 @@ export const getGeminiSuggestion = async (
   if (!GOOGLE_API_KEY) throw new Error("Missing Google API Key");
 
   const realWeather = await fetchRealWeather(location);
-  // 🔥 把濕度放入 Prompt 讓 AI 分析
-  let weatherInfo = realWeather 
-    ? `真實天氣: 氣溫 ${realWeather.temp}°C, 體感 ${realWeather.feelsLike}°C, 濕度 ${realWeather.humidity}%, 狀況 ${realWeather.condition}`
-    : `模擬天氣`;
+  let weatherInfo = realWeather ? `真實天氣: 現在 ${realWeather.temp_C}°C (高 ${realWeather.maxtempC}°C, 低 ${realWeather.mintempC}°C), 濕度 ${realWeather.humidity}%, 降雨率 ${realWeather.chanceofrain}%, 狀況 ${realWeather.condition}` : `模擬天氣`;
 
   const prompt = `
     你是一位專業時尚造型師。使用者：${gender}, 風格 ${style}, 個人色彩: ${colorSeason} (亮冬特點：高對比、鮮豔冷色，避免大地色)。
     時間：${targetDay} ${timeOfDay}。
     ${weatherInfo}
 
-    請根據氣溫與濕度提供穿搭建議：
-    1. 若濕度高 (>70%)，建議穿著透氣材質(棉麻、排汗)。
-    2. 若風大或氣溫低，建議多層次穿搭。
-    
-    請回傳 JSON 格式：
+    請根據氣溫、濕度與降雨機率提供穿搭建議。
+    回傳 JSON 格式：
     {
-      "weather": { "location": "${location}", "temperature": 25, "condition": "晴天", "humidity": "75%", "precipitation": "0%", "feels_like": 28 },
+      "weather": { "location": "${location}", "temperature": 25, "feels_like": 28, "maxtempC": 30, "mintempC": 24, "humidity": "75%", "precipitation": "10%" },
       "outfit": {
-        "summary": "繁體中文總結",
-        "reason": "根據氣溫與濕度的繁體中文詳細建議 (例如: 今天濕度較高，建議穿著透氣...)",
-        "tips": "繁體中文貼心提醒",
+        "summary": "繁體中文總結", 
+        "reason": "根據氣溫與濕度的中文建議", 
+        "tips": "中文提醒 (例如: 降雨機率高，記得帶傘)",
         "color_palette": ["寶石藍", "純白", "深黑", "鮮紅"],
         "items": [
-          {"name": "單品名稱", "color": "顏色", "material": "材質(如棉、羊毛)", "reason": "為何選擇此材質(如透氣、保暖)"},
-          {"name": "單品名稱", "color": "顏色", "material": "材質", "reason": "原因"},
-          {"name": "單品名稱", "color": "顏色", "material": "材質", "reason": "原因"},
-          {"name": "單品名稱", "color": "顏色", "material": "材質", "reason": "原因"}
+          {"name": "寶石藍T恤", "color": "寶石藍", "material": "棉質", "reason": "顯白", "type": "top"},
+          {"name": "黑色寬褲", "color": "黑色", "material": "西裝布", "reason": "修身", "type": "pants"},
+          {"name": "白色球鞋", "color": "白色", "material": "皮革", "reason": "百搭", "type": "shoes"},
+          {"name": "銀色腰包", "color": "銀色", "material": "金屬", "reason": "點綴", "type": "bag"}
         ],
         "visualPrompts": ["Royal blue and black fashion outfit high contrast street style"] 
       }
     }
-    ⚠️ 嚴格要求：items 至少包含 4 個單品。items.name 必須是繁體中文。
+    ⚠️ 嚴格要求：
+    1. items 至少 4 件 (上衣、褲/裙、鞋、配件)。
+    2. 每個 item 必須有 type 欄位，值為 'top', 'pants', 'skirt', 'dress', 'jacket', 'shoes', 'bag', 'accessory', 'umbrella' 其中之一。
+    3. name 用繁體中文，並明確寫出單品類別 (例如「黑色寬褲」而非「黑色單品」)。
   `;
 
   try {
@@ -94,7 +97,15 @@ export const getGeminiSuggestion = async (
     const parsedData = JSON.parse(repairJson(result.response.text()));
 
     if (realWeather) {
-        parsedData.weather = { ...parsedData.weather, temperature: realWeather.temp, humidity: `${realWeather.humidity}%`, feels_like: realWeather.feelsLike, precipitation: realWeather.precip };
+        parsedData.weather = { 
+          ...parsedData.weather,
+          temperature: realWeather.temp_C, 
+          feels_like: realWeather.FeelsLikeC,
+          humidity: `${realWeather.humidity}%`,
+          precipitation: `${realWeather.chanceofrain}%`,
+          maxtempC: realWeather.maxtempC,
+          mintempC: realWeather.mintempC,
+        };
     }
 
     if (parsedData.outfit?.visualPrompts?.length > 0) {
