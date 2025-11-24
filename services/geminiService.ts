@@ -25,22 +25,73 @@ const translateCondition = (cond: string): string => {
   return cond; 
 };
 
-const fetchPexelsImages = async (query: string): Promise<any[]> => {
+// 🎨 根據個人色彩生成顏色關鍵字
+const getColorKeywords = (colorSeason: ColorSeason): string => {
+  const s = colorSeason.toLowerCase();
+  
+  // 冬季色系
+  if (s.includes('bright winter') || s.includes('淨冬') || s.includes('亮冬')) return 'black white silver icy blue';
+  if (s.includes('true winter') || s.includes('正冬')) return 'black navy burgundy white';
+  if (s.includes('dark winter') || s.includes('深冬')) return 'black charcoal navy deep purple';
+  
+  // 春季色系
+  if (s.includes('light spring') || s.includes('淨春')) return 'white cream light blue coral';
+  if (s.includes('true spring') || s.includes('正春')) return 'coral yellow green turquoise';
+  if (s.includes('bright spring') || s.includes('亮春')) return 'bright yellow orange pink';
+  
+  // 夏季色系
+  if (s.includes('light summer') || s.includes('淨夏')) return 'lavender soft pink light grey';
+  if (s.includes('true summer') || s.includes('正夏')) return 'soft blue rose grey';
+  if (s.includes('muted summer') || s.includes('柔夏')) return 'muted blue grey mauve';
+  
+  // 秋季色系
+  if (s.includes('soft autumn') || s.includes('柔秋')) return 'olive camel beige moss green';
+  if (s.includes('true autumn') || s.includes('正秋')) return 'rust orange burnt sienna mustard';
+  if (s.includes('dark autumn') || s.includes('深秋')) return 'brown burgundy forest green';
+  
+  return 'neutral'; // 預設
+};
+
+// 🔍 精準圖片搜尋
+const fetchPexelsImages = async (
+  gender: Gender, 
+  style: Style, 
+  colorSeason: ColorSeason
+): Promise<any[]> => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
   if (!PEXELS_API_KEY) return [];
+  
   try {
-    const safeQuery = `${query} fashion outfit portrait high quality`;
-    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQuery)}&per_page=3&orientation=portrait`;
+    // 風格對應
+    const styleMap = {
+      'Casual': 'street style casual outfit',
+      'Formal': 'business formal suit professional',
+      'Sport': 'sportswear athletic activewear'
+    };
+    
+    const genderTerm = gender === 'Female' ? 'woman' : 'man';
+    const styleTerm = styleMap[style];
+    const colorKeywords = getColorKeywords(colorSeason);
+    
+    // 組合精準搜尋詞
+    const searchQuery = `${genderTerm} ${styleTerm} ${colorKeywords} fashion portrait`;
+    
+    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=3&orientation=portrait`;
     const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
+    
     if (!response.ok) return [];
+    
     const data = await response.json();
     return data.photos.map((p: any) => ({ 
         id: p.id, 
         url: p.url, 
         src: { medium: p.src.medium, large: p.src.large }, 
-        alt: p.alt || query 
+        alt: p.alt || searchQuery 
     }));
-  } catch (error) { return []; }
+  } catch (error) { 
+    console.error('Pexels 圖片搜尋錯誤:', error);
+    return []; 
+  }
 };
 
 const fetchRealWeather = async (location: string) => {
@@ -54,12 +105,12 @@ const fetchRealWeather = async (location: string) => {
     
     return {
       temp_C: parseInt(current.temp_C),
-      FeelsLikeC: parseInt(current.FeelsLikeC), // 體感溫度
+      FeelsLikeC: parseInt(current.FeelsLikeC),
       humidity: parseInt(current.humidity),
       maxtempC: parseInt(today.maxtempC),
       mintempC: parseInt(today.mintempC),
       chanceofrain: parseInt(today.hourly[0].chanceofrain),
-      condition: translateCondition(current.weatherDesc[0].value) // 翻譯
+      condition: translateCondition(current.weatherDesc[0].value)
     };
   } catch (e) { return null; }
 };
@@ -90,7 +141,13 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
 };
 
 export const getGeminiSuggestion = async (
-  location: string, displayLocation: string, gender: Gender, style: Style, colorSeason: ColorSeason, timeOfDay: TimeOfDay, targetDay: TargetDay
+  location: string, 
+  displayLocation: string, 
+  gender: Gender, 
+  style: Style, 
+  colorSeason: ColorSeason, 
+  timeOfDay: TimeOfDay, 
+  targetDay: TargetDay
 ): Promise<WeatherOutfitResponse> => {
   const GOOGLE_API_KEY = getApiKey('VITE_GOOGLE_API_KEY');
   if (!GOOGLE_API_KEY) {
@@ -140,12 +197,13 @@ export const getGeminiSuggestion = async (
     }
     parsedData.targetDay = targetDay;
 
-    if (parsedData.outfit?.visualPrompts?.length > 0) { 
-        const images = await fetchPexelsImages(parsedData.outfit.visualPrompts[0]);
-        parsedData.generatedImages = images.slice(0, 3);
-    }
+    // 🎯 使用優化後的圖片搜尋
+    const images = await fetchPexelsImages(gender, style, colorSeason);
+    parsedData.generatedImages = images.slice(0, 3);
+    
     return parsedData;
   } catch (e) { 
+    console.error('Gemini 錯誤:', e);
     const safeData = { ...FALLBACK_DATA, targetDay };
     if (realWeather) {
        safeData.weather = { 
