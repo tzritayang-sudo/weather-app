@@ -2,17 +2,16 @@ import React, { useMemo } from 'react';
 import { CloudRain, Shirt, Footprints, ShoppingBag, Umbrella, Glasses, Wind, Watch } from 'lucide-react';
 import { WeatherOutfitResponse } from '../types';
 
-// 🔥 全新的褲子 SVG，更像您的參考圖
+// 🔥 褲子圖示 (保持您的最愛)
 const PantsIcon = ({ size = 24, color = "currentColor", ...props }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M7 4h10v2.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V4z" />
-    <path d="M7 7v13h3v-8h4v8h3V7" />
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M6 4h12v3h-12z" /> <path d="M6 7v13a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-8h2v8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-13" />
   </svg>
 );
 
 const getColorHex = (colorName: string): string => {
   const n = (colorName || '').toLowerCase();
-  if (n.includes('black') || n.includes('黑')) return '#0a0a0a';
+  if (n.includes('black') || n.includes('黑')) return '#0f172a';
   if (n.includes('white') || n.includes('白')) return '#ffffff';
   if (n.includes('royal') || n.includes('寶石')) return '#1e40af';
   if (n.includes('pink') || n.includes('粉')) return '#ec4899';
@@ -24,14 +23,13 @@ const getIcon = (type: string | undefined, name: string | undefined) => {
   const t = (type || '').toLowerCase(), n = (name || '').toLowerCase();
   if (t.includes('watch') || n.includes('錶')) return Watch;
   if (t.includes('shoe') || n.includes('鞋')) return Footprints;
-  if (t.includes('pant') || n.includes('褲') || n.includes('jeans')) return PantsIcon;
-  if (t.includes('jacket') || n.includes('外套') || n.includes('風衣')) return Wind;
+  if (t.includes('pant') || n.includes('褲') || t.includes('jeans')) return PantsIcon;
+  if (t.includes('jacket') || n.includes('外套') || n.includes('衣')) return Wind;
+  if (t.includes('top') || n.includes('t恤') || n.includes('衫')) return Shirt;
   if (t.includes('bag') || n.includes('包')) return ShoppingBag;
   if (n.includes('傘')) return Umbrella;
   if (n.includes('鏡')) return Glasses;
-  // 🔥 強制將 'top' 歸類為上衣 (Shirt)
-  if (t.includes('top') || n.includes('t恤') || n.includes('上衣')) return Shirt;
-  return Shirt; // 預設也給上衣圖示
+  return Shirt;
 };
 
 interface Props { data: WeatherOutfitResponse; loading: boolean; onRetry: () => void; displayLocation: string; isDarkMode: boolean; }
@@ -40,21 +38,29 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
   const displayItems = useMemo(() => { if (!data?.outfit?.items) return []; return data.outfit.items.map((item: any) => ({ ...item, hexColor: getColorHex(item.color), IconComponent: getIcon(item.type, item.name) })); }, [data]);
   const colorPalette = useMemo(() => { if (!data?.outfit?.color_palette) return []; return data.outfit.color_palette.map((c: string) => ({ name: c, hex: getColorHex(c) })); }, [data]);
 
-  const card = isDarkMode ? 'bg-slate-800/90 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-lg';
-  const weatherBg = isDarkMode ? 'bg-slate-700/40 border-slate-600/30' : 'bg-blue-50 border-blue-100';
-  const itemBg = isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200 shadow-sm';
-  const textSub = isDarkMode ? 'text-slate-400' : 'text-slate-600';
-  const ringClass = isDarkMode ? 'border-2 border-white/40' : 'border-2 border-slate-300';
+  // 🔥 極簡配色邏輯 (移除 shadow，改用 border)
+  const card = isDarkMode ? 'bg-slate-800/40 border border-slate-700' : 'bg-white border border-slate-200';
+  const weatherBg = isDarkMode ? 'bg-slate-800/60 border border-slate-700' : 'bg-slate-50 border border-slate-100';
+  const itemBg = isDarkMode ? 'bg-slate-800/40 border border-slate-700' : 'bg-white border border-slate-200';
+  const textSub = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   
+  // 🔥 顏色圈圈優化：
+  // 淺色模式下用 slate-100 做底，深色用 slate-700 做底，對比度更好
+  const circleBg = isDarkMode ? 'bg-slate-700' : 'bg-slate-100';
+  // 外框線條：深色模式用深灰框，淺色模式用淺灰框，避免白色融化
+  const iconRing = isDarkMode ? 'border-4 border-slate-600' : 'border-4 border-white';
+
   if (loading) return <div className={`text-center p-8 ${textSub}`}>AI 分析中...</div>;
   if (!data) return null;
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-6 pb-20">
-      <div className={`rounded-3xl p-6 shadow-xl border ${card}`}>
+    <div className="w-full max-w-md mx-auto space-y-5 pb-20">
+      
+      {/* 天氣卡片 */}
+      <div className={`rounded-3xl p-6 ${card}`}>
         <div className="flex justify-between items-start mb-5">
-          <div><h2 className="text-3xl font-bold">{displayLocation}</h2><p className={`${textSub} text-sm mt-1`}>{data.weather.condition}</p></div>
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg"><CloudRain className="w-7 h-7 text-white" /></div>
+          <div><h2 className="text-3xl font-bold tracking-tight">{displayLocation}</h2><p className={`${textSub} text-sm mt-1`}>{data.weather.condition}</p></div>
+          <div className="p-3 bg-blue-500/10 rounded-2xl"><CloudRain className="w-7 h-7 text-blue-500" /></div>
         </div>
         <div className="flex justify-between gap-2 mb-4">
           {[
@@ -62,48 +68,48 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
             { l: '高/低', v: `${data.weather.maxtempC}°/${data.weather.mintempC}°`, c: '' },
             { l: '濕度', v: data.weather.humidity, c: isDarkMode ? 'text-cyan-300' : 'text-cyan-600' },
             { l: '降雨', v: data.weather.precipitation, c: isDarkMode ? 'text-blue-300' : 'text-blue-600' },
-          ].map((item, i) => <div key={i} className={`flex-1 p-2 rounded-xl border flex flex-col items-center ${weatherBg}`}><div className={`text-[10px] mb-1 ${textSub}`}>{item.l}</div><div className={`text-base font-bold whitespace-nowrap ${item.c}`}>{item.v}</div></div>)}
+          ].map((item, i) => <div key={i} className={`flex-1 p-3 rounded-2xl flex flex-col items-center justify-center ${weatherBg}`}><div className={`text-[10px] mb-1 uppercase tracking-wider ${textSub}`}>{item.l}</div><div className={`text-lg font-bold whitespace-nowrap ${item.c}`}>{item.v}</div></div>)}
         </div>
-        {data.outfit.tips && <div className={`p-3 rounded-xl text-sm ${isDarkMode ? 'bg-amber-500/10 border border-amber-500/20 text-amber-200' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>💡 {data.outfit.tips}</div>}
+        {data.outfit.tips && <div className={`p-4 rounded-2xl text-sm leading-relaxed ${isDarkMode ? 'bg-amber-500/10 text-amber-200' : 'bg-amber-50 text-amber-800'}`}>💡 {data.outfit.tips}</div>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* 單品卡片 */}
+      <div className="grid grid-cols-2 gap-3">
         {displayItems.map((item: any, i: number) => (
-          <div key={i} className={`rounded-3xl p-5 border flex flex-col items-center text-center relative min-h-[160px] justify-center ${itemBg}`}>
-            <div className="absolute top-0 left-0 w-full h-1 opacity-70" style={{ backgroundColor: item.hexColor }} />
-            <div className={`mb-3 p-3 rounded-full shadow-lg ${isDarkMode ? 'bg-slate-900/80' : 'bg-slate-100'} ${ringClass}`}><item.IconComponent size={30} style={{ color: item.hexColor }} /></div>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDarkMode ? 'bg-slate-900 text-slate-400 border-slate-700' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{item.color}</span>
-            <h4 className="font-bold text-base mt-1">{item.name}</h4>
+          <div key={i} className={`rounded-3xl p-6 flex flex-col items-center text-center relative min-h-[180px] justify-center ${itemBg}`}>
+            <div className="absolute top-0 left-0 w-full h-1 opacity-60" style={{ backgroundColor: item.hexColor }} />
+            
+            {/* 🔥 圖示圓圈修正 */}
+            <div className={`mb-4 p-4 rounded-full ${circleBg} ${iconRing}`}>
+              <item.IconComponent size={32} style={{ color: item.hexColor }} />
+            </div>
+            
+            <span className={`text-[10px] px-2.5 py-1 rounded-full mb-2 border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>{item.color}</span>
+            <h4 className="font-bold text-lg leading-tight">{item.name}</h4>
             <p className={`text-xs mt-1 ${textSub}`}>{item.material}</p>
           </div>
         ))}
       </div>
 
-      <div className={`rounded-3xl p-5 border flex flex-col items-center ${card}`}>
-        <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ${textSub}`}>推薦配色</h3>
-        <div className="flex gap-3">{colorPalette.map((c, i) => <div key={i} className={`w-9 h-9 rounded-full shadow-lg ${ringClass}`} style={{ backgroundColor: c.hex }} />)}</div>
-      </div>
-
-      {/* 🔥 恢復顯示三張圖片 */}
+      {/* 穿搭靈感圖片 */}
       {data.generatedImages && data.generatedImages.length > 0 && (
         <div className="space-y-3">
-          <h3 className={`text-sm font-bold uppercase tracking-wider px-1 ${textSub}`}>穿搭靈感</h3>
+          <h3 className={`text-xs font-bold uppercase tracking-wider px-1 ${textSub}`}>穿搭靈感</h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className={`col-span-2 aspect-[16/9] rounded-3xl overflow-hidden border relative shadow-lg ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
-              <img src={data.generatedImages[0].src.large} alt="Outfit idea" className="w-full h-full object-cover" />
+            <div className={`col-span-2 aspect-[16/9] rounded-3xl overflow-hidden ${card}`}>
+              <img src={data.generatedImages[0].src.large} alt="Outfit" className="w-full h-full object-cover" />
             </div>
-            {data.generatedImages.slice(1, 3).map((img: any, idx: number) => (
-              <div key={img.id} className={`aspect-[4/3] rounded-3xl overflow-hidden border shadow-lg ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
-                <img src={img.src.medium} alt={`Outfit idea ${idx + 2}`} className="w-full h-full object-cover" />
+            {data.generatedImages.slice(1, 3).map((img: any) => (
+              <div key={img.id} className={`aspect-[4/3] rounded-3xl overflow-hidden ${card}`}>
+                <img src={img.src.medium} alt="Detail" className="w-full h-full object-cover" />
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <button onClick={onRetry} className={`w-full py-4 rounded-2xl font-bold text-lg border shadow-lg transition ${isDarkMode ? 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>↺ 返回重新生成</button>
+      <button onClick={onRetry} className={`w-full py-4 rounded-2xl font-bold text-lg transition-colors border ${isDarkMode ? 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700' : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'}`}>↺ 重新生成</button>
     </div>
   );
 };
-
 export default ResultDisplay;
