@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-// 引入 Lucide 所有可能用到的圖示，包括 Watch
 import {
   CloudRain,
   Shirt,
@@ -9,13 +8,13 @@ import {
   Glasses,
   Wind,
   Watch,
-  User,
-  Scissors,
-  CloudFog
+  Layers, // 改用 Layers 代表下身
+  CloudFog,
+  Thermometer,
+  Droplets
 } from 'lucide-react';
 import { WeatherOutfitResponse, Style, Gender, TargetDay, TimeOfDay } from '../types';
 
-// 🔥 顏色校正：黑白增加邊框邏輯 (在下面 JSX 處理)
 const getColorHex = (colorName: string): string => {
   const name = colorName ? colorName.toLowerCase().trim() : '';
   
@@ -24,40 +23,37 @@ const getColorHex = (colorName: string): string => {
   
   if (name.includes('royal') || name.includes('寶石藍')) return '#1e40af';
   if (name.includes('electric') || name.includes('螢光藍')) return '#06b6d4';
+  if (name.includes('navy') || name.includes('藏青')) return '#1e3a8a';
+  
   if (name.includes('hot pink') || name.includes('桃紅')) return '#ec4899';
   if (name.includes('red') || name.includes('紅')) return '#dc2626';
   
   if (name.includes('silver') || name.includes('銀')) return '#94a3b8';
   if (name.includes('gray') || name.includes('灰')) return '#64748b';
   
+  if (name.includes('green') || name.includes('綠')) return '#22c55e';
+  if (name.includes('yellow') || name.includes('黃')) return '#eab308';
+  if (name.includes('purple') || name.includes('紫')) return '#a855f7';
+  
   return '#64748b';
 };
 
-// 🔥 圖示終極判斷
 const getIconComponent = (type: string | undefined, name: string | undefined) => {
   const t = (type || '').toLowerCase();
   const n = (name || '').toLowerCase();
 
-  // 手錶
   if (t.includes('watch') || n.includes('錶') || n.includes('watch')) return Watch;
-
-  // 鞋子
   if (t.includes('shoe') || n.includes('鞋') || n.includes('靴')) return Footprints;
+  
+  // 褲子/裙子：改用 Layers (折疊感)，這是 Lucide 中最適合代表"下身/褲裝"的抽象圖示
+  if (t.includes('pant') || n.includes('褲') || t.includes('skirt') || n.includes('裙')) return Layers;
 
-  // 褲子/裙子 -> 用 Scissors (剪裁) 代表褲管/版型，比 Wind 好很多
-  if (t.includes('pant') || n.includes('褲') || t.includes('skirt') || n.includes('裙')) return Scissors;
-
-  // 外套 -> 用 Wind (防風)
   if (t.includes('jacket') || n.includes('外套') || n.includes('大衣')) return Wind;
-
-  // 包包
   if (t.includes('bag') || n.includes('包')) return ShoppingBag;
-
-  // 配件 (眼鏡、帽)
   if (n.includes('鏡') || n.includes('glass')) return Glasses;
   if (n.includes('傘')) return Umbrella;
 
-  return Shirt; // 預設上衣
+  return Shirt;
 };
 
 const translateLocation = (displayLocation: string, apiLocation: string) => {
@@ -177,8 +173,8 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
               className="absolute top-0 left-0 w-full h-1 opacity-70"
               style={{ backgroundColor: item.hexColor }}
             />
-            {/* 🔥 增加白色外圈 (ring-white/20)，確保黑色圖示也看得到 */}
-            <div className="mb-3 p-3 rounded-full bg-slate-900/80 ring-1 ring-white/20 shadow-lg">
+            {/* 🔥 強制加上 border-2 border-white/20，確保黑色圖示依然可見 */}
+            <div className="mb-3 p-3 rounded-full bg-slate-900/80 border-2 border-white/20 shadow-lg">
               <item.IconComponent size={28} style={{ color: item.hexColor }} />
             </div>
             <div className="w-full flex flex-col gap-1">
@@ -194,7 +190,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
         ))}
       </div>
 
-      {/* 色票 (增加外框) */}
+      {/* 色票 */}
       <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-5 border border-slate-700/50 flex flex-col items-center">
         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
           推薦配色 Palette
@@ -203,7 +199,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
           {colorPalette.map((color, idx) => (
             <div
               key={idx}
-              // 🔥 增加 border-2 border-white/20，讓黑色圓圈也有白邊
+              // 🔥 強制加上 border-2 border-white/20
               className="w-8 h-8 rounded-full border-2 border-white/20 shadow-lg"
               style={{ backgroundColor: color.hex }}
               title={color.name || 'Color'}
