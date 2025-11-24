@@ -1,8 +1,17 @@
 import React, { useMemo } from 'react';
-import { CloudRain, Shirt, Footprints, ShoppingBag, Umbrella, Glasses, Wind, Watch, ThermometerSun, Droplets, Cloud } from 'lucide-react';
+import { CloudRain, Shirt, Footprints, ShoppingBag, Umbrella, Glasses, Wind, Watch, Thermometer, Droplets, Cloud, Sparkles } from 'lucide-react';
 import { WeatherOutfitResponse } from '../types';
 
-// 🔥 前端再次強制翻譯，確保萬無一失
+// ----------------------------------------------------------------------
+// 輔助函式區
+// ----------------------------------------------------------------------
+
+const PantsIcon = ({ size = 24, color = "currentColor", ...props }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M6 4h12v3h-12z" /> <path d="M6 7v13a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-8h2v8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-13" />
+  </svg>
+);
+
 const translateWeather = (cond: string) => {
   if (!cond) return '多雲';
   const c = cond.toLowerCase();
@@ -15,12 +24,6 @@ const translateWeather = (cond: string) => {
   if (c.includes('fog') || c.includes('mist')) return '有霧';
   return cond; 
 };
-
-const PantsIcon = ({ size = 24, color = "currentColor", ...props }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M6 4h12v3h-12z" /> <path d="M6 7v13a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-8h2v8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-13" />
-  </svg>
-);
 
 const getColorHex = (colorName: string): string => {
   if (!colorName) return '#cbd5e1';
@@ -65,9 +68,15 @@ const getIcon = (type: string | undefined, name: string | undefined) => {
   return Shirt;
 };
 
+// ----------------------------------------------------------------------
+// 主組件
+// ----------------------------------------------------------------------
+
 interface Props { data: WeatherOutfitResponse; loading: boolean; onRetry: () => void; displayLocation: string; isDarkMode: boolean; }
 
 const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocation, isDarkMode }) => {
+  
+  // 1. Hook 放在最前面，確保 React 執行順序
   const displayItems = useMemo(() => { 
     if (!data?.outfit?.items) return []; 
     return data.outfit.items.map((item: any) => ({ 
@@ -82,77 +91,84 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
     return data.outfit.color_palette.map((c: string) => ({ name: c, hex: getColorHex(c) })); 
   }, [data]);
 
+  // 2. 樣式定義
   const card = isDarkMode ? 'bg-slate-900/60 border border-white/10 backdrop-blur-2xl' : 'bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]';
   const itemCard = isDarkMode ? 'bg-white/5 border border-white/5 hover:bg-white/10' : 'bg-white border border-gray-100 hover:shadow-lg';
   const textMain = isDarkMode ? 'text-white' : 'text-gray-900';
   const textSub = isDarkMode ? 'text-slate-400' : 'text-gray-500';
   const circleBg = isDarkMode ? 'bg-slate-800' : 'bg-gray-50';
   const circleBorder = isDarkMode ? 'border-2 border-white/30' : 'border-2 border-gray-300';
+  const weatherCardBg = isDarkMode 
+    ? 'bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10' 
+    : 'bg-gradient-to-br from-blue-50 to-white border border-blue-100';
 
+  // 3. 🔥 關鍵修復：先檢查 loading 和 data，再做資料讀取，防止白屏
+  if (loading) return <div className={`text-center p-10 ${textSub} tracking-widest text-sm animate-pulse`}>AI 正在分析氣候與穿搭...</div>;
+  
+  // 如果沒有 data 或 weather 為空，顯示重試
+  if (!data || !data.weather) {
+    return null; // 或者 return <div className="text-center p-10">暫無資料</div>
+  }
+
+  // 4. 安全讀取資料
   const timeLabel = data.targetDay === 'tomorrow' ? '明天' : '現在';
-  const weatherCondition = translateWeather(data?.weather?.condition || '');
+  const weatherCondition = translateWeather(data.weather.condition || '');
   const WeatherIcon = weatherCondition.includes('雨') ? CloudRain : Cloud;
-
-  if (loading) return <div className={`text-center p-10 ${textSub} tracking-widest text-sm animate-pulse`}>AI 分析中...</div>;
-  if (!data) return null;
 
   return (
     <div className="w-full max-w-md mx-auto space-y-8 pb-20 animate-fade-in-up">
       
-      {/* 🔥 高級天氣卡片：雜誌風格排版 + 背景裝飾 */}
-      <div className={`rounded-[2.5rem] p-8 relative overflow-hidden ${card}`}>
+      {/* 🔥 高級天氣卡片 */}
+      <div className={`rounded-[2.5rem] p-8 relative overflow-hidden ${weatherCardBg} shadow-xl`}>
         
-        {/* 背景大圖示裝飾 */}
-        <div className="absolute -right-8 -top-8 opacity-5 rotate-12 pointer-events-none">
-          <WeatherIcon size={200} fill="currentColor" />
+        {/* 背景裝飾 */}
+        <div className="absolute -right-10 -top-10 opacity-10 rotate-12 pointer-events-none">
+          <WeatherIcon size={240} fill="currentColor" className={isDarkMode ? 'text-white' : 'text-blue-900'} />
         </div>
 
         <div className="relative z-10">
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-start mb-4">
             <div>
-              <h2 className={`text-3xl font-bold tracking-tight ${textMain}`}>{displayLocation}</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`text-lg font-medium ${textSub}`}>{weatherCondition}</span>
-                <span className={`px-2.5 py-0.5 text-xs rounded-full ${isDarkMode ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-600'}`}>
+              <h2 className={`text-4xl font-bold tracking-tight ${textMain}`}>{displayLocation}</h2>
+              <div className="flex items-center gap-2 mt-2">
+                <span className={`text-xl font-medium ${textSub}`}>{weatherCondition}</span>
+                <span className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider ${isDarkMode ? 'bg-white/10 text-white' : 'bg-slate-100 text-slate-600'}`}>
                   {timeLabel}
                 </span>
               </div>
             </div>
-            {/* 小天氣圖示 */}
-            <div className={`p-3 rounded-2xl ${isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
-              <WeatherIcon className="w-8 h-8" />
-            </div>
           </div>
 
-          {/* 主溫度 + 高低溫 */}
-          <div className="flex items-baseline gap-4 mb-8">
-            <div className={`text-7xl font-light tracking-tighter ${textMain}`}>
+          {/* 溫度超大字體 */}
+          <div className="mt-4 flex items-baseline gap-3">
+            <div className={`text-[5rem] leading-none font-light tracking-tighter ${textMain}`}>
               {data.weather.temperature}°
             </div>
-            <div className="flex flex-col text-sm font-medium opacity-80 space-y-0.5">
+            <div className="flex flex-col text-sm font-medium opacity-80">
                <span className={textMain}>高 {data.weather.maxtempC}°</span>
                <span className={textSub}>低 {data.weather.mintempC}°</span>
             </div>
           </div>
 
-          {/* 底部資訊列：體感、濕度、降雨 */}
-          <div className="grid grid-cols-3 gap-4 border-t pt-6 border-dashed border-gray-400/20">
+          {/* 底部資訊：體感、濕度、降雨 */}
+          <div className="mt-8 grid grid-cols-3 gap-4 border-t pt-6 border-dashed border-gray-400/20">
             <div className="flex flex-col gap-1">
               <span className={`text-[10px] uppercase tracking-wider font-bold opacity-60 ${textSub}`}>體感</span>
-              <span className={`text-lg font-semibold flex items-center gap-1 ${textMain}`}>
-                <ThermometerSun size={16} className="opacity-70" /> {data.weather.feels_like || data.weather.temperature}°
+              <span className={`text-xl font-semibold flex items-center gap-1 ${textMain}`}>
+                <Thermometer size={18} className="opacity-70" /> 
+                {data.weather.feels_like || data.weather.temperature}°
               </span>
             </div>
             <div className="flex flex-col gap-1">
               <span className={`text-[10px] uppercase tracking-wider font-bold opacity-60 ${textSub}`}>濕度</span>
-              <span className={`text-lg font-semibold flex items-center gap-1 ${textMain}`}>
-                <Droplets size={16} className="opacity-70" /> {data.weather.humidity}
+              <span className={`text-xl font-semibold flex items-center gap-1 ${textMain}`}>
+                <Droplets size={18} className="opacity-70" /> {data.weather.humidity}
               </span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className={`text-[10px] uppercase tracking-wider font-bold opacity-60 ${textSub}`}>降雨</span>
-              <span className={`text-lg font-semibold flex items-center gap-1 ${textMain}`}>
-                <CloudRain size={16} className="opacity-70" /> {data.weather.precipitation}
+              <span className={`text-[10px] uppercase tracking-wider font-bold opacity-60 ${textSub}`}>降雨率</span>
+              <span className={`text-xl font-semibold flex items-center gap-1 ${textMain}`}>
+                <CloudRain size={18} className="opacity-70" /> {data.weather.precipitation}
               </span>
             </div>
           </div>
@@ -160,7 +176,12 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
       </div>
 
       {/* 穿搭提示 */}
-      {data.outfit.tips && <div className={`p-6 rounded-3xl text-base leading-relaxed tracking-wide border ${isDarkMode ? 'bg-amber-900/20 border-amber-800/30 text-amber-100' : 'bg-amber-50 border-amber-100 text-amber-900'}`}>💡 {data.outfit.tips}</div>}
+      {data.outfit?.tips && (
+        <div className={`p-6 rounded-3xl text-sm leading-relaxed tracking-wide border flex gap-3 ${isDarkMode ? 'bg-amber-900/20 border-amber-800/30 text-amber-100' : 'bg-amber-50 border-amber-100 text-amber-900'}`}>
+          <Sparkles className="shrink-0 mt-0.5 text-amber-400" size={18} />
+          {data.outfit.tips}
+        </div>
+      )}
 
       {/* 單品卡片 */}
       <div className="grid grid-cols-2 gap-4">
@@ -177,8 +198,8 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
                 <item.IconComponent size={40} style={{ color: iconColor }} strokeWidth={1.5} />
               </div>
               <span className={`text-xs px-3 py-1 rounded-full mb-3 tracking-wider border ${isDarkMode ? 'border-white/10 text-slate-400' : 'border-gray-200 text-gray-500'}`}>{item.color}</span>
-              <h4 className={`font-bold text-xl leading-tight mb-1 ${textMain}`}>{item.name}</h4>
-              <p className={`text-sm ${textSub}`}>{item.material}</p>
+              <h4 className={`font-bold text-lg leading-tight mb-1 ${textMain}`}>{item.name}</h4>
+              <p className={`text-xs ${textSub}`}>{item.material}</p>
             </div>
           );
         })}
@@ -186,7 +207,7 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
 
       {/* 配色 */}
       <div className={`rounded-[2rem] p-8 flex flex-col items-center text-center ${card}`}>
-        <h3 className={`text-sm font-bold tracking-[0.2em] mb-6 uppercase ${textSub}`}>推薦配色</h3>
+        <h3 className={`text-xs font-bold tracking-[0.25em] mb-6 uppercase ${textSub}`}>推薦配色</h3>
         <div className="flex gap-6">
           {colorPalette.map((c, i) => (
             <div key={i} className={`w-12 h-12 rounded-full shadow-xl transition-transform hover:scale-110 ${isDarkMode ? 'border-2 border-white/30' : 'border-2 border-gray-300'}`} style={{ backgroundColor: c.hex }} title={c.name} />
@@ -197,7 +218,7 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
       {/* 圖片 */}
       {data.generatedImages && data.generatedImages.length > 0 && (
         <div className="space-y-6 pt-2">
-          <h3 className={`text-sm font-bold tracking-[0.2em] px-2 uppercase ${textSub}`}>穿搭靈感</h3>
+          <h3 className={`text-xs font-bold tracking-[0.25em] px-2 uppercase ${textSub}`}>穿搭靈感</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className={`col-span-2 aspect-[16/9] rounded-[2rem] overflow-hidden shadow-lg ${isDarkMode ? 'border border-white/10' : 'border border-gray-100'}`}>
               <img src={data.generatedImages[0].src.large} alt="穿搭示意" className="w-full h-full object-cover" />
@@ -211,7 +232,9 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
         </div>
       )}
 
-      <button onClick={onRetry} className={`w-full py-6 rounded-[2rem] font-bold text-lg tracking-wide transition-all duration-300 border ${isDarkMode ? 'bg-slate-900 text-white border-white/15 hover:bg-black' : 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800'}`}>重新生成</button>
+      <button onClick={onRetry} className={`w-full py-6 rounded-[2rem] font-bold text-lg tracking-wide transition-all duration-300 border ${isDarkMode ? 'bg-slate-900 text-white border-white/15 hover:bg-black' : 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800'}`}>
+        重新生成
+      </button>
     </div>
   );
 };
