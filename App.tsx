@@ -1,16 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { getGeminiSuggestion } from './services/geminiService';
 import ResultDisplay from './components/ResultDisplay';
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from './types';
 import { MapPin, Shirt, Palette, Clock, Loader2, User, Sparkles } from 'lucide-react';
 
+// 定義儲存的地點結構
+type SavedLocation = { label: string; query: string };
+
 function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WeatherOutfitResponse | null>(null);
   
+  // 預設值
   const [displayLocation, setDisplayLocation] = useState('泰山'); 
   const [apiLocation, setApiLocation] = useState('Taishan, Taiwan');
-
   const [gender, setGender] = useState<Gender>('Female');
   const [style, setStyle] = useState<Style>('Casual');
   const [colorSeason, setColorSeason] = useState<ColorSeason>('Bright Winter (淨冬/亮冬)');
@@ -18,8 +21,45 @@ function App() {
   const [targetDay, setTargetDay] = useState<TargetDay>('today');
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('current');
 
+  // 儲存使用者自訂的地點列表
+  const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
+
+  // 1. 初始化：從 localStorage 讀取上次的設定
+  useEffect(() => {
+    const raw = localStorage.getItem('ai-outfit-settings');
+    if (raw) {
+      try {
+        const s = JSON.parse(raw);
+        if (s.displayLocation) {
+          setDisplayLocation(s.displayLocation);
+          setApiLocation(s.apiLocation || s.displayLocation);
+        }
+        if (s.gender) setGender(s.gender);
+        if (s.style) setStyle(s.style);
+        if (s.colorSeason) setColorSeason(s.colorSeason);
+        if (Array.isArray(s.savedLocations)) setSavedLocations(s.savedLocations);
+      } catch (e) {
+        console.error("Failed to load settings", e);
+      }
+    }
+  }, []);
+
+  // 2. 當選項改變時，自動儲存到 localStorage
+  useEffect(() => {
+    const payload = {
+      displayLocation,
+      apiLocation,
+      gender,
+      style,
+      colorSeason,
+      savedLocations
+    };
+    localStorage.setItem('ai-outfit-settings', JSON.stringify(payload));
+  }, [displayLocation, apiLocation, gender, style, colorSeason, savedLocations]);
+
   const handleInputChange = (val: string) => {
     setDisplayLocation(val);
+    // 簡單的英文轉換邏輯，實際還是依賴使用者輸入
     if (val.includes('泰山') || val.toLowerCase().includes('taishan')) {
       setApiLocation('Taishan, Taiwan');
     } else {
@@ -30,6 +70,17 @@ function App() {
   const handleQuickLocation = (name: string, query: string) => {
     setDisplayLocation(name);
     setApiLocation(query);
+  };
+
+  // 新增自訂地點功能
+  const addCustomLocation = () => {
+    if (!displayLocation.trim()) return;
+    // 避免重複加入
+    if (savedLocations.some(l => l.label === displayLocation.trim())) return;
+    
+    const newLoc: SavedLocation = { label: displayLocation.trim(), query: apiLocation };
+    // 最多保留 5 個自訂地點
+    setSavedLocations(prev => [...prev, newLoc].slice(-5));
   };
 
   const calculateCurrentTimeOfDay = (): TimeOfDay => {
@@ -47,7 +98,7 @@ function App() {
       const actualTargetDay = timeOfDay === 'current' ? 'today' : targetDay;
 
       const data = await getGeminiSuggestion(
-        apiLocation, gender, style, colorSeason, actualTimeOfDay, actualTargetDay
+        apiLocation, displayLocation, gender, style, colorSeason, actualTimeOfDay, actualTargetDay
       );
       setResult(data);
     } catch (error) {
@@ -56,7 +107,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [apiLocation, gender, style, colorSeason, timeOfDay, targetDay]);
+  }, [apiLocation, displayLocation, gender, style, colorSeason, timeOfDay, targetDay]);
 
   const handleRetry = () => {
     setResult(null);
@@ -92,10 +143,12 @@ function App() {
                 userStyle={style}
                 targetDay={timeOfDay === 'current' ? 'today' : targetDay}
                 timeOfDay={timeOfDay === 'current' ? calculateCurrentTimeOfDay() : timeOfDay}
+                displayLocation={displayLocation}
               />
             ) : (
               <div className="space-y-8 animate-fade-in-up">
                 
+                {/* Location Input */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center mb-1">
                     <label className="flex items-center text-sm font-bold text-slate-400 ml-1 uppercase tracking-wider">
@@ -103,15 +156,43 @@ function App() {
                     </label>
                   </div>
                   <div className="relative">
-                    <input type="text" value={displayLocation} onChange={(e) => handleInputChange(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700 text-white text-lg rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600 transition-all" placeholder="輸入城市..." />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
-                       <button onClick={() => handleQuickLocation('泰山', 'Taishan, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30">泰山</button>
-                       <button onClick={() => handleQuickLocation('汐止', 'Xizhi, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30">汐止</button>
-                       <button onClick={() => handleQuickLocation('雙北通勤', 'Taipei, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30">雙北</button>
+                    <input 
+                      type="text" 
+                      value={displayLocation} 
+                      onChange={(e) => handleInputChange(e.target.value)} 
+                      className="w-full bg-slate-800/50 border border-slate-700 text-white text-lg rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600 transition-all" 
+                      placeholder="輸入城市..." 
+                    />
+                    {/* 快捷按鈕區：包含預設與使用者自訂 */}
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 overflow-x-auto max-w-[60%] no-scrollbar">
+                       <button onClick={() => handleQuickLocation('泰山', 'Taishan, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30 whitespace-nowrap">泰山</button>
+                       <button onClick={() => handleQuickLocation('汐止', 'Xizhi, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30 whitespace-nowrap">汐止</button>
+                       <button onClick={() => handleQuickLocation('雙北', 'Taipei, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30 whitespace-nowrap">雙北</button>
+                       
+                       {/* 顯示使用者儲存的地點 */}
+                       {savedLocations.map((loc, idx) => (
+                         <button 
+                           key={idx} 
+                           onClick={() => handleQuickLocation(loc.label, loc.query)} 
+                           className="text-[11px] px-3 py-1.5 bg-blue-900/30 hover:bg-blue-800/50 rounded-xl text-blue-200 border border-blue-700/30 whitespace-nowrap"
+                         >
+                           {loc.label}
+                         </button>
+                       ))}
+
+                       {/* 新增地點按鈕 */}
+                       <button 
+                         onClick={addCustomLocation} 
+                         className="text-[14px] px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-400 border border-slate-600/50"
+                         title="儲存目前輸入的地點"
+                       >
+                         +
+                       </button>
                     </div>
                   </div>
                 </div>
 
+                {/* Gender & Style */}
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <label className="flex items-center text-sm font-bold text-slate-400 ml-1 uppercase tracking-wider">
@@ -135,19 +216,22 @@ function App() {
                   </div>
                 </div>
 
+                {/* Personal Color */}
                 <div className="space-y-3">
                   <label className="flex items-center text-sm font-bold text-slate-400 ml-1 uppercase tracking-wider">
                     <Palette size={14} className="mr-2 text-pink-400" /> 個人色彩季型
                   </label>
                   <div className="relative">
                     <select value={colorSeason} onChange={(e) => setColorSeason(e.target.value as ColorSeason)} className="w-full bg-slate-800/50 border border-slate-700 text-white text-base rounded-2xl px-5 py-4 appearance-none focus:ring-2 focus:ring-pink-500 outline-none">
-                      <option value="Bright Winter (淨冬/亮冬)">Bright Winter (淨冬/亮冬) 🔥</option>
+                      {/* 移除火圖示，保持簡潔 */}
+                      <option value="Bright Winter (淨冬/亮冬)">Bright Winter (淨冬/亮冬)</option>
                       {seasons.filter(s => s !== 'Bright Winter (淨冬/亮冬)').map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">▼</div>
                   </div>
                 </div>
 
+                {/* Time Selection */}
                 <div className="space-y-3">
                   <label className="flex items-center text-sm font-bold text-slate-400 ml-1 uppercase tracking-wider">
                     <Clock size={14} className="mr-2 text-green-400" /> 時間選擇
@@ -161,13 +245,18 @@ function App() {
                   {timeOfDay !== 'current' && (
                     <div className="flex justify-center gap-4 mt-2 pt-2 border-t border-slate-800">
                       {(['today', 'tomorrow'] as TargetDay[]).map((d) => (
-                        <button key={d} onClick={() => setTargetDay(d)} className={`text-xs px-4 py-1.5 rounded-full transition-colors ${targetDay === d ? 'bg-slate-700 text-white font-medium' : 'text-slate-500 hover:text-slate-300'}`}>{d === 'today' ? 'Today (今天)' : 'Tomorrow (明天)'}</button>
+                        <button key={d} onClick={() => setTargetDay(d)} className={`text-xs px-4 py-1.5 rounded-full transition-colors ${targetDay === d ? 'bg-slate-700 text-white font-medium' : 'text-slate-500 hover:text-slate-300'}`}>{d === 'today' ? 'Today' : 'Tomorrow'}</button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <button onClick={handleGenerate} disabled={loading} className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl font-bold text-white text-lg border-b-4 border-blue-800 shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 hover:scale-[1.01] active:border-b-0 active:translate-y-1 transition-all mt-6 disabled:opacity-50 disabled:cursor-not-allowed">
+                {/* Submit Button */}
+                <button 
+                  onClick={handleGenerate} 
+                  disabled={loading} 
+                  className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl font-bold text-white text-xl border-b-4 border-blue-800 shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 hover:scale-[1.01] active:border-b-0 active:translate-y-1 transition-all mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   {loading ? <Loader2 className="animate-spin mx-auto" /> : '✨ 取得今日穿搭靈感'}
                 </button>
 
