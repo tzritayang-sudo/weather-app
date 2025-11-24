@@ -9,7 +9,6 @@ type SavedLocation = { label: string; query: string };
 function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WeatherOutfitResponse | null>(null);
-
   const [displayLocation, setDisplayLocation] = useState('汐止');
   const [apiLocation, setApiLocation] = useState('Xizhi, Taiwan');
   const [gender, setGender] = useState<Gender>('Female');
@@ -21,351 +20,125 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
 
   useEffect(() => {
-    const raw = localStorage.getItem('ai-outfit-v4');
+    const raw = localStorage.getItem('ai-outfit-v6');
     if (!raw) return;
     try {
       const s = JSON.parse(raw);
-      if (s.displayLocation) {
-        setDisplayLocation(s.displayLocation);
-        setApiLocation(s.apiLocation || s.displayLocation);
-      }
+      if (s.displayLocation) { setDisplayLocation(s.displayLocation); setApiLocation(s.apiLocation || s.displayLocation); }
       if (s.gender) setGender(s.gender);
       if (s.style) setStyle(s.style);
       if (s.colorSeason) setColorSeason(s.colorSeason);
       if (Array.isArray(s.savedLocations)) setSavedLocations(s.savedLocations);
       if (typeof s.isDarkMode === 'boolean') setIsDarkMode(s.isDarkMode);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch {}
   }, []);
 
   useEffect(() => {
-    const payload = {
-      displayLocation,
-      apiLocation,
-      gender,
-      style,
-      colorSeason,
-      savedLocations,
-      isDarkMode,
-    };
-    localStorage.setItem('ai-outfit-v4', JSON.stringify(payload));
+    localStorage.setItem('ai-outfit-v6', JSON.stringify({ displayLocation, apiLocation, gender, style, colorSeason, savedLocations, isDarkMode }));
   }, [displayLocation, apiLocation, gender, style, colorSeason, savedLocations, isDarkMode]);
 
   const handleInputChange = (val: string) => {
     setDisplayLocation(val);
-    if (val.includes('汐止') || val.toLowerCase().includes('xizhi')) {
-      setApiLocation('Xizhi, Taiwan');
-    } else if (val.includes('泰山') || val.toLowerCase().includes('taishan')) {
-      setApiLocation('Taishan, Taiwan');
-    } else if (val.includes('雙北') || val.includes('台北')) {
-      setApiLocation('Taipei, Taiwan');
-    } else {
-      setApiLocation(val);
-    }
+    setApiLocation(val.includes('汐止') ? 'Xizhi, Taiwan' : val.includes('泰山') ? 'Taishan, Taiwan' : val.includes('雙北') ? 'Taipei, Taiwan' : val);
   };
 
-  const handleQuickLocation = (name: string, query: string) => {
-    setDisplayLocation(name);
-    setApiLocation(query);
-  };
+  const handleQuickLocation = (name: string, query: string) => { setDisplayLocation(name); setApiLocation(query); };
 
   const addCustomLocation = () => {
     const label = displayLocation.trim();
-    if (!label) return;
-    if (savedLocations.some((l) => l.label === label)) return;
-    setSavedLocations((prev) => [...prev, { label, query: apiLocation }].slice(-5));
+    if (!label || savedLocations.some(l => l.label === label)) return;
+    setSavedLocations(prev => [...prev, { label, query: apiLocation }].slice(-5));
   };
 
   const removeLocation = (label: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSavedLocations((prev) => prev.filter((l) => l.label !== label));
+    setSavedLocations(prev => prev.filter(l => l.label !== label));
   };
 
-  const calcCurrentTimeOfDay = (): TimeOfDay => {
+  const calcTime = (): TimeOfDay => {
     const h = new Date().getHours();
-    if (h >= 5 && h < 12) return 'morning';
-    if (h >= 12 && h < 18) return 'afternoon';
-    return 'evening';
+    return h >= 5 && h < 12 ? 'morning' : h >= 12 && h < 18 ? 'afternoon' : 'evening';
   };
 
   const handleGenerate = useCallback(async () => {
-    setLoading(true);
-    setResult(null);
+    setLoading(true); setResult(null);
     try {
-      const actualTimeOfDay = timeOfDay === 'current' ? calcCurrentTimeOfDay() : timeOfDay;
-      const actualTargetDay = timeOfDay === 'current' ? 'today' : targetDay;
-      const data = await getGeminiSuggestion(
-        apiLocation,
-        displayLocation,
-        gender,
-        style,
-        colorSeason,
-        actualTimeOfDay,
-        actualTargetDay,
-      );
+      const data = await getGeminiSuggestion(apiLocation, displayLocation, gender, style, colorSeason, timeOfDay === 'current' ? calcTime() : timeOfDay, timeOfDay === 'current' ? 'today' : targetDay);
       setResult(data);
-    } catch (e) {
-      console.error(e);
-      alert('AI 暫時忙碌中，請稍後再試！');
-    } finally {
-      setLoading(false);
-    }
+    } catch { alert('AI 忙碌中，請稍後！'); } finally { setLoading(false); }
   }, [apiLocation, displayLocation, gender, style, colorSeason, timeOfDay, targetDay]);
 
-  const seasons: ColorSeason[] = [
-    'Bright Winter (淨冬/亮冬)', 'True Winter (正冬)', 'Dark Winter (深冬)',
-    'Light Spring (淨春)', 'True Spring (正春)', 'Bright Spring (亮春)',
-    'Light Summer (淨夏)', 'True Summer (正夏)', 'Muted Summer (柔夏)',
-    'Soft Autumn (柔秋)', 'True Autumn (正秋)', 'Dark Autumn (深秋)',
-  ];
+  const seasons: ColorSeason[] = ['Bright Winter (淨冬/亮冬)', 'True Winter (正冬)', 'Dark Winter (深冬)', 'Light Spring (淨春)', 'True Spring (正春)', 'Bright Spring (亮春)', 'Light Summer (淨夏)', 'True Summer (正夏)', 'Muted Summer (柔夏)', 'Soft Autumn (柔秋)', 'True Autumn (正秋)', 'Dark Autumn (深秋)'];
 
-  const bg = isDarkMode ? 'bg-slate-900' : 'bg-slate-50';
-  const text = isDarkMode ? 'text-slate-100' : 'text-slate-900';
-  const textSub = isDarkMode ? 'text-slate-400' : 'text-slate-600';
-  const card = isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200 shadow-sm';
-  const input = isDarkMode ? 'bg-slate-800/50 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900';
+  // 極簡風格變數
+  const bg = isDarkMode ? 'bg-[#0f172a]' : 'bg-[#f8fafc]'; // 深藍黑 vs 極淺灰
+  const text = isDarkMode ? 'text-slate-100' : 'text-slate-800';
+  const textSub = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+  // 移除陰影，改用邊框 (Flat Design)
+  const card = isDarkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-200';
+  const input = isDarkMode ? 'bg-slate-800/40 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900';
+  const btnBase = `rounded-2xl border transition-all duration-200 flex items-center justify-center`;
+  const btnActive = isDarkMode ? 'bg-slate-700 text-white border-slate-600' : 'bg-slate-800 text-white border-slate-800';
+  const btnInactive = isDarkMode ? 'text-slate-400 border-transparent hover:bg-slate-800' : 'text-slate-500 border-transparent hover:bg-slate-100';
 
   return (
     <div className={`min-h-screen font-sans pb-10 transition-colors ${bg} ${text}`}>
       <div className="max-w-md mx-auto min-h-screen flex flex-col">
-        {/* 只保留深淺色按鈕，不顯示標題文字 */}
         <header className="pt-6 pb-2 px-6 flex justify-end">
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className={`p-3 rounded-full transition ${
-              isDarkMode ? 'bg-slate-800 text-yellow-400' : 'bg-white text-slate-600 shadow border border-slate-200'
-            }`}
-          >
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-3 rounded-full transition border ${isDarkMode ? 'bg-slate-800 text-yellow-400 border-slate-700' : 'bg-white text-slate-600 border-slate-200'}`}>
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
         </header>
 
         <main className="flex-1 px-6 py-4 space-y-8">
           {result || loading ? (
-            <ResultDisplay
-              data={result!}
-              loading={loading}
-              onRetry={() => setResult(null)}
-              displayLocation={displayLocation}
-              isDarkMode={isDarkMode}
-            />
+            <ResultDisplay data={result!} loading={loading} onRetry={() => setResult(null)} displayLocation={displayLocation} isDarkMode={isDarkMode} />
           ) : (
             <div className="space-y-8">
-              {/* Location */}
               <div className="space-y-3">
-                <label className={`flex items-center text-sm font-bold uppercase ml-1 ${textSub}`}>
-                  <MapPin size={16} className="mr-2 text-blue-500" /> 地點
-                </label>
+                <label className={`flex items-center text-sm font-bold tracking-wider ml-1 ${textSub}`}><MapPin size={16} className="mr-2" /> 地點</label>
                 <div className="relative">
-                  <input
-                    type="text"
-                    value={displayLocation}
-                    onChange={(e) => handleInputChange(e.target.value)}
-                    className={`w-full text-lg rounded-2xl px-5 py-4 border focus:ring-2 focus:ring-blue-500 outline-none ${input}`}
-                    placeholder="輸入城市..."
-                  />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 overflow-x-auto max-w-[65%]">
-                    <button
-                      onClick={() => handleQuickLocation('汐止', 'Xizhi, Taiwan')}
-                      className={`text-xs px-3 py-1.5 rounded-xl border whitespace-nowrap ${
-                        isDarkMode
-                          ? 'bg-slate-700/50 border-slate-600 text-slate-300'
-                          : 'bg-slate-100 border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      汐止
-                    </button>
-                    <button
-                      onClick={() => handleQuickLocation('泰山', 'Taishan, Taiwan')}
-                      className={`text-xs px-3 py-1.5 rounded-xl border whitespace-nowrap ${
-                        isDarkMode
-                          ? 'bg-slate-700/50 border-slate-600 text-slate-300'
-                          : 'bg-slate-100 border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      泰山
-                    </button>
-                    <button
-                      onClick={() => handleQuickLocation('雙北', 'Taipei, Taiwan')}
-                      className={`text-xs px-3 py-1.5 rounded-xl border whitespace-nowrap ${
-                        isDarkMode
-                          ? 'bg-slate-700/50 border-slate-600 text-slate-300'
-                          : 'bg-slate-100 border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      雙北
-                    </button>
-
-                    {savedLocations.map((loc, i) => (
-                      <div key={i} className="relative flex items-center">
-                        <button
-                          onClick={() => handleQuickLocation(loc.label, loc.query)}
-                          className={`text-xs pl-3 pr-6 py-1.5 rounded-xl border ${
-                            isDarkMode
-                              ? 'bg-blue-900/30 border-blue-700/30 text-blue-200'
-                              : 'bg-blue-50 border-blue-200 text-blue-700'
-                          }`}
-                        >
-                          {loc.label}
-                        </button>
-                        <button
-                          onClick={(e) => removeLocation(loc.label, e)}
-                          className="absolute right-1 text-red-400 hover:text-red-500"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-
-                    <button
-                      onClick={addCustomLocation}
-                      className={`w-7 h-7 flex items-center justify-center rounded-full border ${
-                        isDarkMode
-                          ? 'bg-slate-800 border-slate-600 text-slate-400'
-                          : 'bg-white border-slate-300 text-slate-500'
-                      }`}
-                    >
-                      +
-                    </button>
+                  <input type="text" value={displayLocation} onChange={(e) => handleInputChange(e.target.value)} className={`w-full text-lg px-5 py-4 border outline-none rounded-2xl ${input}`} placeholder="輸入城市..." />
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 overflow-x-auto max-w-[65%] no-scrollbar">
+                     {['汐止', '泰山', '雙北'].map(n => <button key={n} onClick={() => handleQuickLocation(n, n === '雙北' ? 'Taipei' : n)} className={`text-xs px-3 py-1.5 rounded-xl border whitespace-nowrap ${isDarkMode ? 'bg-slate-800/50 border-slate-600 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'}`}>{n}</button>)}
+                     {savedLocations.map((loc, i) => <div key={i} className="relative flex items-center"><button onClick={() => handleQuickLocation(loc.label, loc.query)} className={`text-xs pl-3 pr-6 py-1.5 rounded-xl border ${isDarkMode ? 'bg-blue-900/20 border-blue-800 text-blue-200' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>{loc.label}</button><button onClick={(e) => removeLocation(loc.label, e)} className="absolute right-1 text-red-400 hover:text-red-500"><X size={12} /></button></div>)}
+                     <button onClick={addCustomLocation} className={`w-7 h-7 flex items-center justify-center rounded-full border ${isDarkMode ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-white border-slate-300 text-slate-500'}`}>+</button>
                   </div>
                 </div>
               </div>
 
-              {/* Gender & Style */}
               <div className="grid grid-cols-2 gap-5">
                 <div className="space-y-3">
-                  <label className={`flex items-center text-sm font-bold uppercase ml-1 ${textSub}`}>
-                    <User size={16} className="mr-2 text-indigo-500" /> 性別
-                  </label>
+                  <label className={`flex items-center text-sm font-bold ml-1 ${textSub}`}><User size={16} className="mr-2" /> 性別</label>
                   <div className={`flex gap-1 p-1 rounded-2xl border ${card}`}>
-                    {(['Female', 'Male'] as Gender[]).map((g) => (
-                      <button
-                        key={g}
-                        onClick={() => setGender(g)}
-                        className={`flex-1 py-3 rounded-xl text-base font-semibold transition ${
-                          gender === g ? 'bg-indigo-500 text-white shadow' : 'text-slate-400'
-                        }`}
-                      >
-                        {g === 'Female' ? '女生' : '男生'}
-                      </button>
-                    ))}
+                    {(['Female', 'Male'] as Gender[]).map(g => <button key={g} onClick={() => setGender(g)} className={`flex-1 py-3 ${btnBase} ${gender === g ? btnActive : btnInactive}`}>{g === 'Female' ? '女生' : '男生'}</button>)}
                   </div>
                 </div>
-
                 <div className="space-y-3">
-                  <label className={`flex items-center text-sm font-bold uppercase ml-1 ${textSub}`}>
-                    <Sparkles size={16} className="mr-2 text-amber-500" /> 風格
-                  </label>
+                  <label className={`flex items-center text-sm font-bold ml-1 ${textSub}`}><Sparkles size={16} className="mr-2" /> 風格</label>
                   <div className="flex flex-col gap-2">
-                    {(['Casual', 'Formal', 'Sport'] as Style[]).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setStyle(s)}
-                        className={`py-2.5 rounded-xl text-sm font-medium border transition ${
-                          style === s
-                            ? isDarkMode
-                              ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                              : 'bg-amber-50 border-amber-300 text-amber-700'
-                            : isDarkMode
-                            ? 'bg-slate-800/50 border-slate-700 text-slate-400'
-                            : 'bg-white border-slate-200 text-slate-600'
-                        }`}
-                      >
-                        {s === 'Casual' ? '休閒' : s === 'Formal' ? '正式' : '運動'}
-                      </button>
-                    ))}
+                    {(['Casual', 'Formal', 'Sport'] as Style[]).map(s => <button key={s} onClick={() => setStyle(s)} className={`py-3 px-4 text-sm ${btnBase} justify-between ${style === s ? btnActive : (isDarkMode ? 'bg-slate-800/30 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-600')}`}>{s === 'Casual' ? '休閒' : s === 'Formal' ? '正式' : '運動'} {style === s && '✓'}</button>)}
                   </div>
                 </div>
               </div>
 
-              {/* Color Season */}
               <div className="space-y-3">
-                <label className={`flex items-center text-sm font-bold uppercase ml-1 ${textSub}`}>
-                  <Palette size={16} className="mr-2 text-pink-500" /> 個人色彩
-                </label>
-                <select
-                  value={colorSeason}
-                  onChange={(e) => setColorSeason(e.target.value as ColorSeason)}
-                  className={`w-full text-base rounded-2xl px-5 py-4 border focus:ring-2 focus:ring-pink-500 outline-none ${input}`}
-                >
-                  {seasons.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
+                <label className={`flex items-center text-sm font-bold ml-1 ${textSub}`}><Palette size={16} className="mr-2" /> 個人色彩</label>
+                <select value={colorSeason} onChange={(e) => setColorSeason(e.target.value as ColorSeason)} className={`w-full text-base px-5 py-4 border outline-none rounded-2xl ${input}`}>
+                  {seasons.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
 
-              {/* Time */}
               <div className="space-y-3">
-                <label className={`flex items-center text-sm font-bold uppercase ml-1 ${textSub}`}>
-                  <Clock size={16} className="mr-2 text-green-500" /> 時間
-                </label>
+                <label className={`flex items-center text-sm font-bold ml-1 ${textSub}`}><Clock size={16} className="mr-2" /> 時間</label>
                 <div className="grid grid-cols-4 gap-2">
-                  <button
-                    onClick={() => {
-                      setTimeOfDay('current');
-                      setTargetDay('today');
-                    }}
-                    className={`py-3 rounded-2xl text-sm border transition ${
-                      timeOfDay === 'current'
-                        ? isDarkMode
-                          ? 'bg-green-500/20 border-green-500/50 text-green-300'
-                          : 'bg-green-50 border-green-300 text-green-700'
-                        : isDarkMode
-                        ? 'bg-slate-800/50 border-slate-700 text-slate-400'
-                        : 'bg-white border-slate-200 text-slate-600'
-                    }`}
-                  >
-                    🚀 現在
-                  </button>
-                  {(['morning', 'afternoon', 'evening'] as TimeOfDay[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTimeOfDay(t)}
-                      className={`py-3 rounded-2xl text-sm border transition ${
-                        timeOfDay === t
-                          ? isDarkMode
-                            ? 'bg-blue-500/20 border-blue-500/50 text-blue-300'
-                            : 'bg-blue-50 border-blue-300 text-blue-700'
-                          : isDarkMode
-                          ? 'bg-slate-800/50 border-slate-700 text-slate-400'
-                          : 'bg-white border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {t === 'morning' ? '早上' : t === 'afternoon' ? '下午' : '晚上'}
-                    </button>
-                  ))}
+                   <button onClick={() => { setTimeOfDay('current'); setTargetDay('today'); }} className={`py-3 text-sm ${btnBase} ${timeOfDay === 'current' ? btnActive : (isDarkMode ? 'bg-slate-800/30 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-600')}`}>🚀 現在</button>
+                   {(['morning', 'afternoon', 'evening'] as TimeOfDay[]).map(t => <button key={t} onClick={() => setTimeOfDay(t)} className={`py-3 text-sm ${btnBase} ${timeOfDay === t ? btnActive : (isDarkMode ? 'bg-slate-800/30 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-600')}`}>{t === 'morning' ? '早上' : t === 'afternoon' ? '下午' : '晚上'}</button>)}
                 </div>
-                {timeOfDay !== 'current' && (
-                  <div className="flex justify-center gap-3 pt-2">
-                    {(['today', 'tomorrow'] as TargetDay[]).map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setTargetDay(d)}
-                        className={`text-sm px-5 py-1.5 rounded-full ${
-                          targetDay === d
-                            ? isDarkMode
-                              ? 'bg-slate-700 text-white'
-                              : 'bg-slate-200 text-slate-800'
-                            : 'text-slate-400'
-                        }`}
-                      >
-                        {d === 'today' ? '今天' : '明天'}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {timeOfDay !== 'current' && <div className="flex justify-center gap-3 pt-2">{(['today', 'tomorrow'] as TargetDay[]).map(d => <button key={d} onClick={() => setTargetDay(d)} className={`text-sm px-5 py-1.5 rounded-full transition-colors ${targetDay === d ? btnActive : (isDarkMode ? 'text-slate-500' : 'text-slate-400')}`}>{d === 'today' ? '今天' : '明天'}</button>)}</div>}
               </div>
 
-              <button
-                onClick={handleGenerate}
-                disabled={loading}
-                className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl font-bold text-white text-xl shadow-xl hover:scale-[1.01] transition disabled:opacity-50"
-              >
-                {loading ? <Loader2 className="animate-spin mx-auto" /> : '✨ 取得穿搭建議'}
-              </button>
+              <button onClick={handleGenerate} disabled={loading} className="w-full py-5 rounded-2xl font-bold text-white text-xl shadow-lg hover:scale-[1.01] transition bg-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">{loading ? <Loader2 className="animate-spin mx-auto" /> : '取得穿搭建議'}</button>
             </div>
           )}
         </main>
