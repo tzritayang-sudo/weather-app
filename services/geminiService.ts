@@ -53,7 +53,7 @@ const repairJson = (jsonString: string) => {
 };
 
 export const getGeminiSuggestion = async (
-  location: string, gender: Gender, style: Style, colorSeason: ColorSeason, timeOfDay: TimeOfDay, targetDay: TargetDay
+  location: string, displayLocation: string, gender: Gender, style: Style, colorSeason: ColorSeason, timeOfDay: TimeOfDay, targetDay: TargetDay
 ): Promise<WeatherOutfitResponse> => {
   const GOOGLE_API_KEY = getApiKey('VITE_GOOGLE_API_KEY');
   if (!GOOGLE_API_KEY) throw new Error("Missing Google API Key");
@@ -73,21 +73,18 @@ export const getGeminiSuggestion = async (
       "outfit": {
         "summary": "繁體中文總結", 
         "reason": "根據氣溫與濕度的中文建議", 
-        "tips": "中文提醒 (例如: 降雨機率高，記得帶傘)",
+        "tips": "中文提醒",
         "color_palette": ["寶石藍", "純白", "深黑", "鮮紅"],
         "items": [
-          {"name": "寶石藍T恤", "color": "寶石藍", "material": "棉質", "reason": "顯白", "type": "top"},
-          {"name": "黑色寬褲", "color": "黑色", "material": "西裝布", "reason": "修身", "type": "pants"},
-          {"name": "白色球鞋", "color": "白色", "material": "皮革", "reason": "百搭", "type": "shoes"},
-          {"name": "銀色腰包", "color": "銀色", "material": "金屬", "reason": "點綴", "type": "bag"}
+          {"name": "單品名稱", "color": "顏色", "material": "材質", "reason": "原因", "type": "T-shirt"},
+          {"name": "單品名稱", "color": "顏色", "material": "材質", "reason": "原因", "type": "Pants"},
+          {"name": "單品名稱", "color": "顏色", "material": "材質", "reason": "原因", "type": "Shoes"},
+          {"name": "單品名稱", "color": "顏色", "material": "材質", "reason": "原因", "type": "Bag"}
         ],
         "visualPrompts": ["Royal blue and black fashion outfit high contrast street style"] 
       }
     }
-    ⚠️ 嚴格要求：
-    1. items 至少 4 件 (上衣、褲/裙、鞋、配件)。
-    2. 每個 item 必須有 type 欄位，值為 'top', 'pants', 'skirt', 'dress', 'jacket', 'shoes', 'bag', 'accessory', 'umbrella' 其中之一。
-    3. name 用繁體中文，並明確寫出單品類別 (例如「黑色寬褲」而非「黑色單品」)。
+    ⚠️ 嚴格要求：items 至少 4 件。每個 item 必須有 type 欄位。
   `;
 
   try {
@@ -98,11 +95,11 @@ export const getGeminiSuggestion = async (
 
     if (realWeather) {
         parsedData.weather = { 
-          ...parsedData.weather,
+          location: displayLocation, // 使用前端傳來的顯示名稱 (例如"大安區")
           temperature: realWeather.temp_C, 
           feels_like: realWeather.FeelsLikeC,
-          humidity: `${realWeather.humidity}%`,
-          precipitation: `${realWeather.chanceofrain}%`,
+          humidity: `${realWeather.humidity}%`, // 只加一次 %
+          precipitation: `${realWeather.chanceofrain}%`, // 只加一次 %
           maxtempC: realWeather.maxtempC,
           mintempC: realWeather.mintempC,
         };
