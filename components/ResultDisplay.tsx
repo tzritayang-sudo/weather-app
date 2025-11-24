@@ -2,16 +2,17 @@ import React, { useMemo } from 'react';
 import { CloudRain, Shirt, Footprints, ShoppingBag, Umbrella, Glasses, Wind, Watch } from 'lucide-react';
 import { WeatherOutfitResponse } from '../types';
 
-// 🔥 褲子圖示（兩條清晰褲管）
+// 🔥 全新的褲子 SVG，更像您的參考圖
 const PantsIcon = ({ size = 24, color = "currentColor", ...props }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <rect x="6" y="4" width="12" height="3" rx="1" /><path d="M7 7v13M17 7v13M7 20h3M14 20h3M10 7h4" />
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M7 4h10v2.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V4z" />
+    <path d="M7 7v13h3v-8h4v8h3V7" />
   </svg>
 );
 
 const getColorHex = (colorName: string): string => {
   const n = (colorName || '').toLowerCase();
-  if (n.includes('black') || n.includes('黑')) return '#0f172a';
+  if (n.includes('black') || n.includes('黑')) return '#0a0a0a';
   if (n.includes('white') || n.includes('白')) return '#ffffff';
   if (n.includes('royal') || n.includes('寶石')) return '#1e40af';
   if (n.includes('pink') || n.includes('粉')) return '#ec4899';
@@ -23,12 +24,14 @@ const getIcon = (type: string | undefined, name: string | undefined) => {
   const t = (type || '').toLowerCase(), n = (name || '').toLowerCase();
   if (t.includes('watch') || n.includes('錶')) return Watch;
   if (t.includes('shoe') || n.includes('鞋')) return Footprints;
-  if (t.includes('pant') || n.includes('褲') || t.includes('jeans')) return PantsIcon;
-  if (t.includes('jacket') || n.includes('外套')) return Wind;
+  if (t.includes('pant') || n.includes('褲') || n.includes('jeans')) return PantsIcon;
+  if (t.includes('jacket') || n.includes('外套') || n.includes('風衣')) return Wind;
   if (t.includes('bag') || n.includes('包')) return ShoppingBag;
   if (n.includes('傘')) return Umbrella;
   if (n.includes('鏡')) return Glasses;
-  return Shirt;
+  // 🔥 強制將 'top' 歸類為上衣 (Shirt)
+  if (t.includes('top') || n.includes('t恤') || n.includes('上衣')) return Shirt;
+  return Shirt; // 預設也給上衣圖示
 };
 
 interface Props { data: WeatherOutfitResponse; loading: boolean; onRetry: () => void; displayLocation: string; isDarkMode: boolean; }
@@ -41,6 +44,7 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
   const weatherBg = isDarkMode ? 'bg-slate-700/40 border-slate-600/30' : 'bg-blue-50 border-blue-100';
   const itemBg = isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200 shadow-sm';
   const textSub = isDarkMode ? 'text-slate-400' : 'text-slate-600';
+  const ringClass = isDarkMode ? 'border-2 border-white/40' : 'border-2 border-slate-300';
   
   if (loading) return <div className={`text-center p-8 ${textSub}`}>AI 分析中...</div>;
   if (!data) return null;
@@ -67,7 +71,7 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
         {displayItems.map((item: any, i: number) => (
           <div key={i} className={`rounded-3xl p-5 border flex flex-col items-center text-center relative min-h-[160px] justify-center ${itemBg}`}>
             <div className="absolute top-0 left-0 w-full h-1 opacity-70" style={{ backgroundColor: item.hexColor }} />
-            <div className={`mb-3 p-3 rounded-full shadow-lg ${isDarkMode ? 'bg-slate-900/80 border-2 border-white/20' : 'bg-slate-100 border-2 border-slate-300'}`}><item.IconComponent size={30} style={{ color: item.hexColor }} /></div>
+            <div className={`mb-3 p-3 rounded-full shadow-lg ${isDarkMode ? 'bg-slate-900/80' : 'bg-slate-100'} ${ringClass}`}><item.IconComponent size={30} style={{ color: item.hexColor }} /></div>
             <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isDarkMode ? 'bg-slate-900 text-slate-400 border-slate-700' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{item.color}</span>
             <h4 className="font-bold text-base mt-1">{item.name}</h4>
             <p className={`text-xs mt-1 ${textSub}`}>{item.material}</p>
@@ -77,11 +81,29 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
 
       <div className={`rounded-3xl p-5 border flex flex-col items-center ${card}`}>
         <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ${textSub}`}>推薦配色</h3>
-        <div className="flex gap-3">{colorPalette.map((c, i) => <div key={i} className={`w-9 h-9 rounded-full shadow-lg ${isDarkMode ? 'border-2 border-white/30' : 'border-2 border-slate-300'}`} style={{ backgroundColor: c.hex }} />)}</div>
+        <div className="flex gap-3">{colorPalette.map((c, i) => <div key={i} className={`w-9 h-9 rounded-full shadow-lg ${ringClass}`} style={{ backgroundColor: c.hex }} />)}</div>
       </div>
+
+      {/* 🔥 恢復顯示三張圖片 */}
+      {data.generatedImages && data.generatedImages.length > 0 && (
+        <div className="space-y-3">
+          <h3 className={`text-sm font-bold uppercase tracking-wider px-1 ${textSub}`}>穿搭靈感</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className={`col-span-2 aspect-[16/9] rounded-3xl overflow-hidden border relative shadow-lg ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+              <img src={data.generatedImages[0].src.large} alt="Outfit idea" className="w-full h-full object-cover" />
+            </div>
+            {data.generatedImages.slice(1, 3).map((img: any, idx: number) => (
+              <div key={img.id} className={`aspect-[4/3] rounded-3xl overflow-hidden border shadow-lg ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
+                <img src={img.src.medium} alt={`Outfit idea ${idx + 2}`} className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <button onClick={onRetry} className={`w-full py-4 rounded-2xl font-bold text-lg border shadow-lg transition ${isDarkMode ? 'bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}>↺ 返回重新生成</button>
     </div>
   );
 };
+
 export default ResultDisplay;
