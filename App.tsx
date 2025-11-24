@@ -62,10 +62,16 @@ function App() {
     setResult(null);
   };
 
+  const seasons: ColorSeason[] = [
+    'Bright Winter (淨冬/亮冬)', 'True Winter (正冬)', 'Dark Winter (深冬)',
+    'Light Spring (淨春)', 'True Spring (正春)', 'Bright Spring (亮春)',
+    'Light Summer (淨夏)', 'True Summer (正夏)', 'Muted Summer (柔夏)',
+    'Soft Autumn (柔秋)', 'True Autumn (正秋)', 'Dark Autumn (深秋)'
+  ];
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-blue-500/30 pb-10">
       <div className="max-w-md mx-auto min-h-screen flex flex-col relative">
-        
         <header className="pt-8 pb-2 px-6 text-center relative z-10">
           <div className="inline-flex items-center justify-center p-3 bg-blue-500/10 rounded-2xl mb-4 ring-1 ring-blue-500/20 backdrop-blur-xl">
             <Shirt className="w-8 h-8 text-blue-400" />
@@ -97,7 +103,7 @@ function App() {
                     </label>
                   </div>
                   <div className="relative">
-                    <input type="text" value={displayLocation} onChange={(e) => handleInputChange(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700 text-white text-lg rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="輸入城市..." />
+                    <input type="text" value={displayLocation} onChange={(e) => handleInputChange(e.target.value)} className="w-full bg-slate-800/50 border border-slate-700 text-white text-lg rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600 transition-all" placeholder="輸入城市..." />
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
                        <button onClick={() => handleQuickLocation('泰山', 'Taishan, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30">泰山</button>
                        <button onClick={() => handleQuickLocation('汐止', 'Xizhi, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30">汐止</button>
@@ -136,17 +142,7 @@ function App() {
                   <div className="relative">
                     <select value={colorSeason} onChange={(e) => setColorSeason(e.target.value as ColorSeason)} className="w-full bg-slate-800/50 border border-slate-700 text-white text-base rounded-2xl px-5 py-4 appearance-none focus:ring-2 focus:ring-pink-500 outline-none">
                       <option value="Bright Winter (淨冬/亮冬)">Bright Winter (淨冬/亮冬) 🔥</option>
-                      <option value="True Winter (正冬/冷冬)">True Winter (正冬/冷冬)</option>
-                      <option value="Dark Winter (深冬/暗冬)">Dark Winter (深冬/暗冬)</option>
-                      <option value="Light Spring (淨春/淺春)">Light Spring (淨春/淺春)</option>
-                      <option value="True Spring (正春/暖春)">True Spring (正春/暖春)</option>
-                      <option value="Bright Spring (亮春)">Bright Spring (亮春)</option>
-                      <option value="Light Summer (淨夏/淺夏)">Light Summer (淨夏/淺夏)</option>
-                      <option value="True Summer (正夏/冷夏)">True Summer (正夏/冷夏)</option>
-                      <option value="Muted Summer (柔夏)">Muted Summer (柔夏)</option>
-                      <option value="Soft Autumn (柔秋)">Soft Autumn (柔秋)</option>
-                      <option value="True Autumn (正秋/暖秋)">True Autumn (正秋/暖秋)</option>
-                      <option value="Dark Autumn (深秋/暗秋)">Dark Autumn (深秋/暗秋)</option>
+                      {seasons.filter(s => s !== 'Bright Winter (淨冬/亮冬)').map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">▼</div>
                   </div>
@@ -171,14 +167,10 @@ function App() {
                   )}
                 </div>
 
-                {/* 🔥 按鈕優化：更有立體感的外框 */}
-                <button 
-                  onClick={handleGenerate} 
-                  disabled={loading} 
-                  className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl font-bold text-white text-lg border-b-4 border-blue-800 shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 hover:scale-[1.01] active:border-b-0 active:translate-y-1 transition-all mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <button onClick={handleGenerate} disabled={loading} className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl font-bold text-white text-lg border-b-4 border-blue-800 shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 hover:scale-[1.01] active:border-b-0 active:translate-y-1 transition-all mt-6 disabled:opacity-50 disabled:cursor-not-allowed">
                   {loading ? <Loader2 className="animate-spin mx-auto" /> : '✨ 取得今日穿搭靈感'}
                 </button>
+
               </div>
             )}
           </div>
