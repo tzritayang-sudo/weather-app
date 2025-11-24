@@ -8,6 +8,23 @@ const getApiKey = (keyName: string) => {
   return envKey ? envKey.trim() : null;
 }
 
+// 🔥 強化版天氣翻譯
+const translateCondition = (cond: string): string => {
+  if (!cond) return '多雲';
+  const c = cond.toLowerCase().trim();
+  
+  if (c.includes('partly') && c.includes('cloudy')) return '多雲時晴';
+  if (c.includes('sunny') || c.includes('clear')) return '晴朗';
+  if (c.includes('cloudy') || c.includes('overcast')) return '多雲';
+  if (c.includes('mist') || c.includes('fog')) return '有霧';
+  if (c.includes('rain') || c.includes('drizzle')) return '有雨';
+  if (c.includes('shower')) return '陣雨';
+  if (c.includes('thunder')) return '雷雨';
+  if (c.includes('snow')) return '下雪';
+  
+  return cond; 
+};
+
 const fetchPexelsImages = async (query: string): Promise<any[]> => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
   if (!PEXELS_API_KEY) return [];
@@ -33,14 +50,16 @@ const fetchRealWeather = async (location: string) => {
     if (!response.ok) throw new Error('Weather API Error');
     const data = await response.json();
     const today = data.weather[0];
+    const current = data.current_condition[0];
+    
     return {
-      temp_C: parseInt(data.current_condition[0].temp_C),
-      FeelsLikeC: parseInt(data.current_condition[0].FeelsLikeC),
-      humidity: parseInt(data.current_condition[0].humidity),
+      temp_C: parseInt(current.temp_C),
+      FeelsLikeC: parseInt(current.FeelsLikeC), // 體感溫度
+      humidity: parseInt(current.humidity),
       maxtempC: parseInt(today.maxtempC),
       mintempC: parseInt(today.mintempC),
       chanceofrain: parseInt(today.hourly[0].chanceofrain),
-      condition: data.current_condition[0].weatherDesc[0].value
+      condition: translateCondition(current.weatherDesc[0].value) // 翻譯
     };
   } catch (e) { return null; }
 };
@@ -51,19 +70,18 @@ const repairJson = (jsonString: string) => {
     return (first !== -1 && last !== -1) ? clean.substring(first, last + 1) : clean;
 };
 
-// 🔥 預設的安全數據，防止 AI 掛掉時白畫面
 const FALLBACK_DATA: WeatherOutfitResponse = {
-  weather: { location: "Taipei", temperature: 25, feels_like: 27, maxtempC: 28, mintempC: 22, humidity: "70%", precipitation: "20%", condition: "Cloudy" },
+  weather: { location: "Taipei", temperature: 25, feels_like: 27, maxtempC: 28, mintempC: 22, humidity: "70%", precipitation: "20%", condition: "多雲" },
   outfit: {
-    summary: "AI 暫時休息中，這是預設建議",
-    reason: "系統暫時無法連線，建議穿著舒適透氣的衣物。",
-    tips: "請稍後再試，或檢查網路連線。",
-    color_palette: ["白色", "黑色", "牛仔藍"],
+    summary: "預設建議",
+    reason: "系統暫時忙碌，建議穿著舒適透氣。",
+    tips: "請稍後再試。",
+    color_palette: ["白色", "黑色", "藍色"],
     items: [
-      { name: "簡約白色T恤", color: "白色", material: "棉質", type: "top" },
-      { name: "經典直筒牛仔褲", color: "藍色", material: "丹寧", type: "pants" },
-      { name: "休閒小白鞋", color: "白色", material: "帆布", type: "shoes" },
-      { name: "黑色帆布包", color: "黑色", material: "帆布", type: "bag" }
+      { name: "白色T恤", color: "白色", material: "棉質", type: "top" },
+      { name: "牛仔褲", color: "藍色", material: "丹寧", type: "pants" },
+      { name: "小白鞋", color: "白色", material: "帆布", type: "shoes" },
+      { name: "側背包", color: "黑色", material: "尼龍", type: "bag" }
     ],
     visualPrompts: ["casual fashion"]
   },
@@ -75,10 +93,7 @@ export const getGeminiSuggestion = async (
   location: string, displayLocation: string, gender: Gender, style: Style, colorSeason: ColorSeason, timeOfDay: TimeOfDay, targetDay: TargetDay
 ): Promise<WeatherOutfitResponse> => {
   const GOOGLE_API_KEY = getApiKey('VITE_GOOGLE_API_KEY');
-  
-  // 如果沒有 API Key，直接回傳預設值，避免報錯
   if (!GOOGLE_API_KEY) {
-      console.error("Missing Google API Key");
       return { ...FALLBACK_DATA, weather: { ...FALLBACK_DATA.weather, location: displayLocation } };
   }
 
@@ -86,30 +101,30 @@ export const getGeminiSuggestion = async (
   const weatherInfo = realWeather ? `真實天氣：${realWeather.temp_C}°C, 體感${realWeather.FeelsLikeC}°C, 濕度${realWeather.humidity}%, 降雨率${realWeather.chanceofrain}%` : '';
 
   const prompt = `
-    你是一位頂尖時尚造型師。根據以下條件，為使用者提供一套完整的穿搭建議。
+    你是一位頂尖時尚造型師。根據以下條件提供穿搭建議。
     - 使用者: ${gender}, 風格 ${style}, 個人色彩: ${colorSeason}
     - 地點: ${displayLocation}
     - 時間: ${targetDay} ${timeOfDay}
     - 天氣: ${weatherInfo}
 
-    請嚴格依照這個 JSON 格式回傳，不要有任何多餘的文字：
+    嚴格依照此 JSON 格式回傳：
     {
       "weather": { "location": "${displayLocation}", "temperature": 25, "feels_like": 28, "maxtempC": 30, "mintempC": 24, "humidity": "75%", "precipitation": "10%" },
       "outfit": {
         "summary": "一句話風格總結",
-        "reason": "詳細的穿搭理由",
-        "tips": "搭配小技巧或提醒",
-        "color_palette": ["推薦色1", "推薦色2", "推薦色3"],
+        "reason": "詳細穿搭理由",
+        "tips": "實用小提醒",
+        "color_palette": ["顏色1", "顏色2", "顏色3"],
         "items": [
-          {"name": "白色棉質T恤", "color": "白色", "material": "棉質", "type": "top"},
-          {"name": "黑色修身寬褲", "color": "黑色", "material": "西裝布", "type": "pants"},
-          {"name": "銀色厚底球鞋", "color": "銀色", "material": "皮革", "type": "shoes"},
-          {"name": "皮革托特包", "color": "黑色", "material": "皮革", "type": "bag"}
+          {"name": "單品名", "color": "顏色", "material": "材質", "type": "top"},
+          {"name": "單品名", "color": "顏色", "material": "材質", "type": "pants"},
+          {"name": "單品名", "color": "顏色", "material": "材質", "type": "shoes"},
+          {"name": "單品名", "color": "顏色", "material": "材質", "type": "bag"}
         ],
-        "visualPrompts": ["${style} ${gender} street style fashion in ${colorSeason} color palette"]
+        "visualPrompts": ["${style} ${gender} fashion street style"]
       }
     }
-    ⚠️ 絕對規則：items 陣列中，第一個物件的 type 必須是 'top'，第二個物件的 type 必須是 'pants'。總共至少要有 4 個物件。
+    ⚠️ items 必須包含 'top' 和 'pants'。
   `;
 
   try {
@@ -117,16 +132,12 @@ export const getGeminiSuggestion = async (
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
     const result = await model.generateContent(prompt);
     const text = result.response.text();
-    
-    if (!text) throw new Error("Empty response from Gemini");
-
+    if (!text) throw new Error("Empty response");
     const parsedData = JSON.parse(repairJson(text));
 
     if (realWeather) {
         parsedData.weather = { ...parsedData.weather, ...realWeather, humidity: `${realWeather.humidity}%`, precipitation: `${realWeather.chanceofrain}%` };
     }
-    
-    // 注入 targetDay 以便 ResultDisplay 使用
     parsedData.targetDay = targetDay;
 
     if (parsedData.outfit?.visualPrompts?.length > 0) { 
@@ -134,15 +145,12 @@ export const getGeminiSuggestion = async (
         parsedData.generatedImages = images.slice(0, 3);
     }
     return parsedData;
-
   } catch (e) { 
-    console.error("Gemini Error:", e);
-    // 發生錯誤時回傳預設資料，但保留天氣資訊（如果有抓到的話）
     const safeData = { ...FALLBACK_DATA, targetDay };
     if (realWeather) {
        safeData.weather = { 
          ...safeData.weather, 
-         location: displayLocation,
+         location: displayLocation, 
          temperature: realWeather.temp_C,
          maxtempC: realWeather.maxtempC,
          mintempC: realWeather.mintempC,
