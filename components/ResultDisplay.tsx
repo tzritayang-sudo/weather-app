@@ -1,25 +1,15 @@
 import React, { useMemo } from 'react';
 import { 
-  CloudRainIcon, 
-  SunIcon, 
-  TShirtIcon, 
-  ShirtIcon, 
-  HoodieIcon, 
-  CoatIcon, 
-  PantsIcon, 
-  ShortsIcon, 
-  SkirtIcon, 
-  DressIcon, 
-  ShoesIcon, 
-  SneakersIcon, 
-  BootsIcon, 
-  SandalsIcon, 
-  BagIcon, 
-  UmbrellaIcon, 
-  GlassesIcon,
-  ThermometerIcon,
-  DropletsIcon,
-  WindIcon
+  CloudRain, 
+  Sun, 
+  Shirt, 
+  Wind,
+  Thermometer,
+  Droplets,
+  Umbrella,
+  Glasses,
+  ShoppingBag,
+  Footprints
 } from 'lucide-react';
 import { WeatherOutfitResponse, Style, Gender, TargetDay, TimeOfDay } from '../types';
 
@@ -58,36 +48,36 @@ const getColorHex = (colorName: string): string => {
   return '#9CA3AF'; // 預設灰色
 };
 
-// 圖示選擇器
+// 圖示選擇器 (使用 Lucide 正確名稱)
 const getIconComponent = (itemName: string) => {
   const name = itemName.toLowerCase();
   
   // 上身
-  if (name.includes('t-shirt') || name.includes('t恤') || name.includes('短袖')) return TShirtIcon;
-  if (name.includes('shirt') || name.includes('襯衫') || name.includes('polo')) return ShirtIcon;
-  if (name.includes('hoodie') || name.includes('sweatshirt') || name.includes('帽t') || name.includes('衛衣')) return HoodieIcon;
-  if (name.includes('coat') || name.includes('jacket') || name.includes('blazer') || name.includes('cardigan') || name.includes('外套') || name.includes('大衣') || name.includes('西裝') || name.includes('針織')) return CoatIcon;
+  if (name.includes('t-shirt') || name.includes('t恤') || name.includes('短袖')) return Shirt;
+  if (name.includes('shirt') || name.includes('襯衫') || name.includes('polo')) return Shirt;
+  if (name.includes('hoodie') || name.includes('sweatshirt') || name.includes('帽t') || name.includes('衛衣')) return Shirt; // Lucide 沒有 Hoodie，暫用 Shirt
+  if (name.includes('coat') || name.includes('jacket') || name.includes('blazer') || name.includes('cardigan') || name.includes('外套') || name.includes('大衣') || name.includes('西裝') || name.includes('針織')) return Shirt;
   
-  // 下身
-  if (name.includes('short') || name.includes('短褲')) return ShortsIcon;
-  if (name.includes('skirt') || name.includes('裙')) return SkirtIcon;
-  if (name.includes('dress') || name.includes('洋裝') || name.includes('連身')) return DressIcon;
-  if (name.includes('pant') || name.includes('jeans') || name.includes('trousers') || name.includes('褲')) return PantsIcon;
+  // 下身 (Lucide 沒有褲子圖示，暫用其他或是只用 Shirt)
+  if (name.includes('short') || name.includes('短褲')) return ShoppingBag; // 暫用 Bag 替代
+  if (name.includes('skirt') || name.includes('裙')) return ShoppingBag;
+  if (name.includes('dress') || name.includes('洋裝') || name.includes('連身')) return Shirt;
+  if (name.includes('pant') || name.includes('jeans') || name.includes('trousers') || name.includes('褲')) return ShoppingBag;
 
   // 鞋子
-  if (name.includes('sneaker') || name.includes('trainer') || name.includes('運動鞋') || name.includes('休閒鞋') || name.includes('小白鞋')) return SneakersIcon;
-  if (name.includes('boot') || name.includes('靴')) return BootsIcon;
-  if (name.includes('sandal') || name.includes('flip') || name.includes('涼鞋') || name.includes('拖鞋')) return SandalsIcon;
-  if (name.includes('shoe') || name.includes('flat') || name.includes('loafer') || name.includes('皮鞋') || name.includes('樂福') || name.includes('平底')) return ShoesIcon;
+  if (name.includes('sneaker') || name.includes('trainer') || name.includes('運動鞋') || name.includes('休閒鞋') || name.includes('小白鞋')) return Footprints;
+  if (name.includes('boot') || name.includes('靴')) return Footprints;
+  if (name.includes('sandal') || name.includes('flip') || name.includes('涼鞋') || name.includes('拖鞋')) return Footprints;
+  if (name.includes('shoe') || name.includes('flat') || name.includes('loafer') || name.includes('皮鞋') || name.includes('樂福') || name.includes('平底')) return Footprints;
 
   // 配件
-  if (name.includes('bag') || name.includes('tote') || name.includes('purse') || name.includes('包')) return BagIcon;
-  if (name.includes('umbrella') || name.includes('傘')) return UmbrellaIcon;
-  if (name.includes('glass') || name.includes('sunglass') || name.includes('墨鏡') || name.includes('眼鏡')) return GlassesIcon;
-  if (name.includes('scarf') || name.includes('圍巾')) return ShirtIcon; 
-  if (name.includes('hat') || name.includes('cap') || name.includes('beanie') || name.includes('帽')) return SunIcon;
+  if (name.includes('bag') || name.includes('tote') || name.includes('purse') || name.includes('包')) return ShoppingBag;
+  if (name.includes('umbrella') || name.includes('傘')) return Umbrella;
+  if (name.includes('glass') || name.includes('sunglass') || name.includes('墨鏡') || name.includes('眼鏡')) return Glasses;
+  if (name.includes('scarf') || name.includes('圍巾')) return Shirt; 
+  if (name.includes('hat') || name.includes('cap') || name.includes('beanie') || name.includes('帽')) return Sun;
 
-  return TShirtIcon; // 預設圖示
+  return Shirt; // 預設圖示
 };
 
 // ----------------------------------------------------------------------
@@ -177,24 +167,24 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({
             </div>
             {/* 天氣圖示 */}
             <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg">
-               <CloudRainIcon className="w-8 h-8 text-white" />
+               <CloudRain className="w-8 h-8 text-white" />
             </div>
           </div>
 
           {/* 氣溫數據 Grid */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center p-3 rounded-2xl bg-slate-700/30 border border-slate-700/50 backdrop-blur-sm">
-              <div className="flex justify-center mb-2 text-blue-300"><ThermometerIcon size={20} /></div>
+              <div className="flex justify-center mb-2 text-blue-300"><Thermometer size={20} /></div>
               <div className="text-2xl font-bold">{data.weather.temperature}°C</div>
               <div className="text-xs text-slate-400 mt-1">氣溫</div>
             </div>
             <div className="text-center p-3 rounded-2xl bg-slate-700/30 border border-slate-700/50 backdrop-blur-sm">
-              <div className="flex justify-center mb-2 text-purple-300"><WindIcon size={20} /></div>
+              <div className="flex justify-center mb-2 text-purple-300"><Wind size={20} /></div>
               <div className="text-2xl font-bold">{data.weather.feels_like}°C</div>
               <div className="text-xs text-slate-400 mt-1">體感</div>
             </div>
             <div className="text-center p-3 rounded-2xl bg-slate-700/30 border border-slate-700/50 backdrop-blur-sm">
-              <div className="flex justify-center mb-2 text-cyan-300"><DropletsIcon size={20} /></div>
+              <div className="flex justify-center mb-2 text-cyan-300"><Droplets size={20} /></div>
               <div className="text-2xl font-bold">{data.weather.precipitation}</div>
               <div className="text-xs text-slate-400 mt-1">降雨率</div>
             </div>
