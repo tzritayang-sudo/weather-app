@@ -2,20 +2,20 @@ import React, { useMemo } from 'react';
 import { CloudRain, Shirt, Footprints, ShoppingBag, Umbrella, Glasses, Wind, Watch } from 'lucide-react';
 import { WeatherOutfitResponse } from '../types';
 
-// 🔥 褲子圖示 (保持您的最愛)
 const PantsIcon = ({ size = 24, color = "currentColor", ...props }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M6 4h12v3h-12z" /> <path d="M6 7v13a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-8h2v8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-13" />
   </svg>
 );
 
 const getColorHex = (colorName: string): string => {
   const n = (colorName || '').toLowerCase();
-  if (n.includes('black') || n.includes('黑')) return '#0f172a';
+  if (n.includes('black') || n.includes('黑')) return '#1a1a1a'; // 不要純黑，帶一點灰更有質感
   if (n.includes('white') || n.includes('白')) return '#ffffff';
-  if (n.includes('royal') || n.includes('寶石')) return '#1e40af';
-  if (n.includes('pink') || n.includes('粉')) return '#ec4899';
-  if (n.includes('red') || n.includes('紅')) return '#dc2626';
+  if (n.includes('royal') || n.includes('寶石')) return '#2563eb';
+  if (n.includes('pink') || n.includes('粉')) return '#f472b6';
+  if (n.includes('red') || n.includes('紅')) return '#ef4444';
+  if (n.includes('silver') || n.includes('銀')) return '#94a3b8';
   return '#64748b';
 };
 
@@ -38,78 +38,110 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
   const displayItems = useMemo(() => { if (!data?.outfit?.items) return []; return data.outfit.items.map((item: any) => ({ ...item, hexColor: getColorHex(item.color), IconComponent: getIcon(item.type, item.name) })); }, [data]);
   const colorPalette = useMemo(() => { if (!data?.outfit?.color_palette) return []; return data.outfit.color_palette.map((c: string) => ({ name: c, hex: getColorHex(c) })); }, [data]);
 
-  // 🔥 極簡配色邏輯 (移除 shadow，改用 border)
-  const card = isDarkMode ? 'bg-slate-800/40 border border-slate-700' : 'bg-white border border-slate-200';
-  const weatherBg = isDarkMode ? 'bg-slate-800/60 border border-slate-700' : 'bg-slate-50 border border-slate-100';
-  const itemBg = isDarkMode ? 'bg-slate-800/40 border border-slate-700' : 'bg-white border border-slate-200';
-  const textSub = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+  // 🔥 高級質感配色 (Premium Minimal)
+  // 深色模式：Slate-900 + 白線條 + 半透明背景
+  // 淺色模式：純白 + 灰線條 + 陰影極淡
+  const card = isDarkMode 
+    ? 'bg-slate-900/40 border border-white/10 backdrop-blur-xl' 
+    : 'bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]';
+    
+  const weatherCell = isDarkMode ? 'bg-white/5 border border-white/5' : 'bg-gray-50 border border-gray-100';
+  const itemCard = isDarkMode ? 'bg-white/5 border border-white/5 hover:bg-white/10' : 'bg-white border border-gray-100 hover:shadow-lg';
+  const textMain = isDarkMode ? 'text-white' : 'text-gray-900';
+  const textSub = isDarkMode ? 'text-slate-400' : 'text-gray-500';
   
-  // 🔥 顏色圈圈優化：
-  // 淺色模式下用 slate-100 做底，深色用 slate-700 做底，對比度更好
-  const circleBg = isDarkMode ? 'bg-slate-700' : 'bg-slate-100';
-  // 外框線條：深色模式用深灰框，淺色模式用淺灰框，避免白色融化
-  const iconRing = isDarkMode ? 'border-4 border-slate-600' : 'border-4 border-white';
+  // 🔥 圓圈與圖示顏色修正
+  // 深色模式下：圓圈背景深灰，外框白色半透明。如果圖示顏色是黑色，強制轉為白色顯示，否則看不到。
+  const circleBg = isDarkMode ? 'bg-slate-800' : 'bg-gray-50';
+  const circleBorder = isDarkMode ? 'border border-white/20' : 'border border-gray-200';
 
-  if (loading) return <div className={`text-center p-8 ${textSub}`}>AI 分析中...</div>;
+  if (loading) return <div className={`text-center p-10 ${textSub} tracking-widest uppercase text-xs animate-pulse`}>Generating...</div>;
   if (!data) return null;
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-5 pb-20">
+    <div className="w-full max-w-md mx-auto space-y-6 pb-20 animate-fade-in-up">
       
       {/* 天氣卡片 */}
-      <div className={`rounded-3xl p-6 ${card}`}>
-        <div className="flex justify-between items-start mb-5">
-          <div><h2 className="text-3xl font-bold tracking-tight">{displayLocation}</h2><p className={`${textSub} text-sm mt-1`}>{data.weather.condition}</p></div>
-          <div className="p-3 bg-blue-500/10 rounded-2xl"><CloudRain className="w-7 h-7 text-blue-500" /></div>
+      <div className={`rounded-[2rem] p-8 ${card}`}>
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h2 className={`text-4xl font-light tracking-tight ${textMain}`}>{displayLocation}</h2>
+            <p className={`${textSub} text-sm mt-2 tracking-wide font-medium`}>{data.weather.condition}</p>
+          </div>
+          <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}><CloudRain className="w-8 h-8" /></div>
         </div>
-        <div className="flex justify-between gap-2 mb-4">
+        
+        <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { l: '現在', v: `${data.weather.temperature}°`, c: isDarkMode ? 'text-yellow-300' : 'text-yellow-600' },
-            { l: '高/低', v: `${data.weather.maxtempC}°/${data.weather.mintempC}°`, c: '' },
-            { l: '濕度', v: data.weather.humidity, c: isDarkMode ? 'text-cyan-300' : 'text-cyan-600' },
-            { l: '降雨', v: data.weather.precipitation, c: isDarkMode ? 'text-blue-300' : 'text-blue-600' },
-          ].map((item, i) => <div key={i} className={`flex-1 p-3 rounded-2xl flex flex-col items-center justify-center ${weatherBg}`}><div className={`text-[10px] mb-1 uppercase tracking-wider ${textSub}`}>{item.l}</div><div className={`text-lg font-bold whitespace-nowrap ${item.c}`}>{item.v}</div></div>)}
+            { l: 'Temp', v: `${data.weather.temperature}°`, c: isDarkMode ? 'text-white' : 'text-gray-900' },
+            { l: 'H / L', v: `${data.weather.maxtempC}°/${data.weather.mintempC}°`, c: textSub },
+            { l: 'Hum', v: data.weather.humidity, c: 'text-cyan-500' },
+            { l: 'Rain', v: data.weather.precipitation, c: 'text-blue-500' },
+          ].map((item, i) => (
+            <div key={i} className={`py-4 rounded-2xl flex flex-col items-center justify-center ${weatherCell}`}>
+              <div className={`text-[10px] mb-1 uppercase tracking-wider font-bold opacity-60 ${textSub}`}>{item.l}</div>
+              <div className={`text-lg font-medium ${item.c}`}>{item.v}</div>
+            </div>
+          ))}
         </div>
-        {data.outfit.tips && <div className={`p-4 rounded-2xl text-sm leading-relaxed ${isDarkMode ? 'bg-amber-500/10 text-amber-200' : 'bg-amber-50 text-amber-800'}`}>💡 {data.outfit.tips}</div>}
+        {data.outfit.tips && <div className={`p-5 rounded-2xl text-sm leading-relaxed tracking-wide ${isDarkMode ? 'bg-amber-500/10 text-amber-100/90 border border-amber-500/20' : 'bg-amber-50 text-amber-900 border border-amber-100'}`}>{data.outfit.tips}</div>}
       </div>
 
       {/* 單品卡片 */}
-      <div className="grid grid-cols-2 gap-3">
-        {displayItems.map((item: any, i: number) => (
-          <div key={i} className={`rounded-3xl p-6 flex flex-col items-center text-center relative min-h-[180px] justify-center ${itemBg}`}>
-            <div className="absolute top-0 left-0 w-full h-1 opacity-60" style={{ backgroundColor: item.hexColor }} />
-            
-            {/* 🔥 圖示圓圈修正 */}
-            <div className={`mb-4 p-4 rounded-full ${circleBg} ${iconRing}`}>
-              <item.IconComponent size={32} style={{ color: item.hexColor }} />
+      <div className="grid grid-cols-2 gap-4">
+        {displayItems.map((item: any, i: number) => {
+          // 如果是深色模式且圖示顏色接近黑色，強制轉白，否則會看不見
+          const displayColor = (isDarkMode && (item.hexColor === '#0a0a0a' || item.hexColor === '#1a1a1a')) ? '#ffffff' : item.hexColor;
+          
+          return (
+            <div key={i} className={`rounded-[2rem] p-6 flex flex-col items-center text-center relative min-h-[200px] justify-center transition-all duration-300 ${itemCard}`}>
+              {/* 裝飾性頂部線條 */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-1 rounded-b-full opacity-50" style={{ backgroundColor: displayColor }} />
+              
+              <div className={`mb-5 p-5 rounded-full shadow-sm ${circleBg} ${circleBorder}`}>
+                <item.IconComponent size={36} style={{ color: displayColor }} strokeWidth={1.5} />
+              </div>
+              
+              <span className={`text-[10px] px-3 py-1 rounded-full mb-3 tracking-wider uppercase border ${isDarkMode ? 'border-white/10 text-slate-400' : 'border-gray-200 text-gray-500'}`}>{item.color}</span>
+              <h4 className={`font-medium text-lg leading-tight mb-1 ${textMain}`}>{item.name}</h4>
+              <p className={`text-xs ${textSub}`}>{item.material}</p>
             </div>
-            
-            <span className={`text-[10px] px-2.5 py-1 rounded-full mb-2 border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>{item.color}</span>
-            <h4 className="font-bold text-lg leading-tight">{item.name}</h4>
-            <p className={`text-xs mt-1 ${textSub}`}>{item.material}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* 穿搭靈感圖片 */}
+      {/* 配色 */}
+      <div className={`rounded-[2rem] p-6 flex flex-col items-center ${card}`}>
+        <h3 className={`text-xs font-bold uppercase tracking-[0.2em] mb-5 ${textSub}`}>Color Palette</h3>
+        <div className="flex gap-4">
+          {colorPalette.map((c, i) => (
+            <div key={i} className={`w-10 h-10 rounded-full shadow-lg transition-transform hover:scale-110 ${isDarkMode ? 'border-2 border-white/20' : 'border-2 border-white'}`} style={{ backgroundColor: c.hex }} title={c.name} />
+          ))}
+        </div>
+      </div>
+
+      {/* 圖片 */}
       {data.generatedImages && data.generatedImages.length > 0 && (
-        <div className="space-y-3">
-          <h3 className={`text-xs font-bold uppercase tracking-wider px-1 ${textSub}`}>穿搭靈感</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div className={`col-span-2 aspect-[16/9] rounded-3xl overflow-hidden ${card}`}>
-              <img src={data.generatedImages[0].src.large} alt="Outfit" className="w-full h-full object-cover" />
+        <div className="space-y-4 pt-4">
+          <h3 className={`text-xs font-bold uppercase tracking-[0.2em] px-2 ${textSub}`}>Inspiration</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className={`col-span-2 aspect-[16/9] rounded-[2rem] overflow-hidden ${card} p-1`}>
+              <img src={data.generatedImages[0].src.large} alt="Look 1" className="w-full h-full object-cover rounded-[1.5rem]" />
             </div>
             {data.generatedImages.slice(1, 3).map((img: any) => (
-              <div key={img.id} className={`aspect-[4/3] rounded-3xl overflow-hidden ${card}`}>
-                <img src={img.src.medium} alt="Detail" className="w-full h-full object-cover" />
+              <div key={img.id} className={`aspect-[4/3] rounded-[2rem] overflow-hidden ${card} p-1`}>
+                <img src={img.src.medium} alt="Look detail" className="w-full h-full object-cover rounded-[1.5rem]" />
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <button onClick={onRetry} className={`w-full py-4 rounded-2xl font-bold text-lg transition-colors border ${isDarkMode ? 'bg-slate-800 text-white border-slate-700 hover:bg-slate-700' : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'}`}>↺ 重新生成</button>
+      <button onClick={onRetry} className={`w-full py-5 rounded-[2rem] font-medium text-lg transition-all duration-300 border ${isDarkMode ? 'bg-white text-slate-950 border-white hover:bg-gray-200' : 'bg-slate-900 text-white border-slate-900 hover:bg-slate-800'}`}>
+        Regenerate
+      </button>
     </div>
   );
 };
+
 export default ResultDisplay;
