@@ -2,69 +2,45 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { getGeminiSuggestion } from './services/geminiService';
 import ResultDisplay from './components/ResultDisplay';
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from './types';
-import { MapPin, Shirt, Palette, Clock, Loader2, User, Sparkles } from 'lucide-react';
+import { MapPin, Shirt, Palette, Clock, Loader2, User, Sparkles, Sun, Moon, Trash2 } from 'lucide-react';
 
-// 定義儲存的地點結構
 type SavedLocation = { label: string; query: string };
 
 function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WeatherOutfitResponse | null>(null);
-  
-  // 預設值
   const [displayLocation, setDisplayLocation] = useState('泰山'); 
   const [apiLocation, setApiLocation] = useState('Taishan, Taiwan');
   const [gender, setGender] = useState<Gender>('Female');
   const [style, setStyle] = useState<Style>('Casual');
   const [colorSeason, setColorSeason] = useState<ColorSeason>('Bright Winter (淨冬/亮冬)');
-  
   const [targetDay, setTargetDay] = useState<TargetDay>('today');
   const [timeOfDay, setTimeOfDay] = useState<TimeOfDay>('current');
-
-  // 儲存使用者自訂的地點列表
   const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // 1. 初始化：從 localStorage 讀取上次的設定
   useEffect(() => {
-    const raw = localStorage.getItem('ai-outfit-settings');
+    const raw = localStorage.getItem('ai-outfit-v3');
     if (raw) {
       try {
         const s = JSON.parse(raw);
-        if (s.displayLocation) {
-          setDisplayLocation(s.displayLocation);
-          setApiLocation(s.apiLocation || s.displayLocation);
-        }
+        if (s.displayLocation) { setDisplayLocation(s.displayLocation); setApiLocation(s.apiLocation || s.displayLocation); }
         if (s.gender) setGender(s.gender);
         if (s.style) setStyle(s.style);
         if (s.colorSeason) setColorSeason(s.colorSeason);
         if (Array.isArray(s.savedLocations)) setSavedLocations(s.savedLocations);
-      } catch (e) {
-        console.error("Failed to load settings", e);
-      }
+        if (typeof s.isDarkMode === 'boolean') setIsDarkMode(s.isDarkMode);
+      } catch {}
     }
   }, []);
 
-  // 2. 當選項改變時，自動儲存到 localStorage
   useEffect(() => {
-    const payload = {
-      displayLocation,
-      apiLocation,
-      gender,
-      style,
-      colorSeason,
-      savedLocations
-    };
-    localStorage.setItem('ai-outfit-settings', JSON.stringify(payload));
-  }, [displayLocation, apiLocation, gender, style, colorSeason, savedLocations]);
+    localStorage.setItem('ai-outfit-v3', JSON.stringify({ displayLocation, apiLocation, gender, style, colorSeason, savedLocations, isDarkMode }));
+  }, [displayLocation, apiLocation, gender, style, colorSeason, savedLocations, isDarkMode]);
 
   const handleInputChange = (val: string) => {
     setDisplayLocation(val);
-    // 簡單的英文轉換邏輯，實際還是依賴使用者輸入
-    if (val.includes('泰山') || val.toLowerCase().includes('taishan')) {
-      setApiLocation('Taishan, Taiwan');
-    } else {
-      setApiLocation(val);
-    }
+    setApiLocation(val.includes('泰山') || val.toLowerCase().includes('taishan') ? 'Taishan, Taiwan' : val);
   };
 
   const handleQuickLocation = (name: string, query: string) => {
@@ -72,197 +48,112 @@ function App() {
     setApiLocation(query);
   };
 
-  // 新增自訂地點功能
   const addCustomLocation = () => {
-    if (!displayLocation.trim()) return;
-    // 避免重複加入
-    if (savedLocations.some(l => l.label === displayLocation.trim())) return;
-    
-    const newLoc: SavedLocation = { label: displayLocation.trim(), query: apiLocation };
-    // 最多保留 5 個自訂地點
-    setSavedLocations(prev => [...prev, newLoc].slice(-5));
+    if (!displayLocation.trim() || savedLocations.some(l => l.label === displayLocation.trim())) return;
+    setSavedLocations(prev => [...prev, { label: displayLocation.trim(), query: apiLocation }].slice(-5));
+  };
+
+  const removeLocation = (label: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSavedLocations(prev => prev.filter(l => l.label !== label));
   };
 
   const calculateCurrentTimeOfDay = (): TimeOfDay => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return 'morning';
-    if (hour >= 12 && hour < 18) return 'afternoon';
-    return 'evening';
+    return hour >= 5 && hour < 12 ? 'morning' : hour >= 12 && hour < 18 ? 'afternoon' : 'evening';
   };
 
   const handleGenerate = useCallback(async () => {
-    setLoading(true);
-    setResult(null);
+    setLoading(true); setResult(null);
     try {
       const actualTimeOfDay = timeOfDay === 'current' ? calculateCurrentTimeOfDay() : timeOfDay;
       const actualTargetDay = timeOfDay === 'current' ? 'today' : targetDay;
-
-      const data = await getGeminiSuggestion(
-        apiLocation, displayLocation, gender, style, colorSeason, actualTimeOfDay, actualTargetDay
-      );
+      const data = await getGeminiSuggestion(apiLocation, displayLocation, gender, style, colorSeason, actualTimeOfDay, actualTargetDay);
       setResult(data);
-    } catch (error) {
-      console.error(error);
-      alert('AI 暫時忙碌中，請稍後再試！');
-    } finally {
-      setLoading(false);
-    }
+    } catch { alert('AI 暫時忙碌中，請稍後再試！'); }
+    finally { setLoading(false); }
   }, [apiLocation, displayLocation, gender, style, colorSeason, timeOfDay, targetDay]);
 
-  const handleRetry = () => {
-    setResult(null);
-  };
+  const handleRetry = () => setResult(null);
 
-  const seasons: ColorSeason[] = [
-    'Bright Winter (淨冬/亮冬)', 'True Winter (正冬)', 'Dark Winter (深冬)',
-    'Light Spring (淨春)', 'True Spring (正春)', 'Bright Spring (亮春)',
-    'Light Summer (淨夏)', 'True Summer (正夏)', 'Muted Summer (柔夏)',
-    'Soft Autumn (柔秋)', 'True Autumn (正秋)', 'Dark Autumn (深秋)'
-  ];
+  const seasons: ColorSeason[] = ['Bright Winter (淨冬/亮冬)', 'True Winter (正冬)', 'Dark Winter (深冬)', 'Light Spring (淨春)', 'True Spring (正春)', 'Bright Spring (亮春)', 'Light Summer (淨夏)', 'True Summer (正夏)', 'Muted Summer (柔夏)', 'Soft Autumn (柔秋)', 'True Autumn (正秋)', 'Dark Autumn (深秋)'];
+
+  const bg = isDarkMode ? 'bg-slate-900' : 'bg-slate-50';
+  const text = isDarkMode ? 'text-slate-100' : 'text-slate-900';
+  const textSub = isDarkMode ? 'text-slate-400' : 'text-slate-600';
+  const card = isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200 shadow-sm';
+  const input = isDarkMode ? 'bg-slate-800/50 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900';
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-blue-500/30 pb-10">
-      <div className="max-w-md mx-auto min-h-screen flex flex-col relative">
-        <header className="pt-8 pb-2 px-6 text-center relative z-10">
-          <div className="inline-flex items-center justify-center p-3 bg-blue-500/10 rounded-2xl mb-4 ring-1 ring-blue-500/20 backdrop-blur-xl">
-            <Shirt className="w-8 h-8 text-blue-400" />
+    <div className={`min-h-screen font-sans pb-10 transition-colors ${bg} ${text}`}>
+      <div className="max-w-md mx-auto min-h-screen flex flex-col">
+        
+        <header className="pt-8 pb-4 px-6 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className={`p-3 rounded-2xl ${isDarkMode ? 'bg-blue-500/10 ring-1 ring-blue-500/20' : 'bg-blue-100'}`}>
+              <Shirt className={`w-8 h-8 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+            </div>
+            <h1 className={`text-3xl font-bold ${text}`}>AI 穿搭</h1>
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent">
-            AI 穿搭氣象台
-          </h1>
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className={`p-3 rounded-full transition ${isDarkMode ? 'bg-slate-800 text-yellow-400' : 'bg-white text-slate-600 shadow border border-slate-200'}`}>
+            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
         </header>
 
-        <main className="flex-1 px-6 py-4 space-y-8 relative z-10">
-          <div className="min-h-[100px] transition-all duration-500 ease-out">
-            {result || loading ? (
-              <ResultDisplay 
-                data={result!} 
-                loading={loading} 
-                onRetry={handleRetry} 
-                userGender={gender}
-                userStyle={style}
-                targetDay={timeOfDay === 'current' ? 'today' : targetDay}
-                timeOfDay={timeOfDay === 'current' ? calculateCurrentTimeOfDay() : timeOfDay}
-                displayLocation={displayLocation}
-              />
-            ) : (
-              <div className="space-y-8 animate-fade-in-up">
-                
-                {/* Location Input */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="flex items-center text-sm font-bold text-slate-400 ml-1 uppercase tracking-wider">
-                      <MapPin size={14} className="mr-2 text-blue-400" /> 地點 Location
-                    </label>
-                  </div>
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      value={displayLocation} 
-                      onChange={(e) => handleInputChange(e.target.value)} 
-                      className="w-full bg-slate-800/50 border border-slate-700 text-white text-lg rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none placeholder-slate-600 transition-all" 
-                      placeholder="輸入城市..." 
-                    />
-                    {/* 快捷按鈕區：包含預設與使用者自訂 */}
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 overflow-x-auto max-w-[60%] no-scrollbar">
-                       <button onClick={() => handleQuickLocation('泰山', 'Taishan, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30 whitespace-nowrap">泰山</button>
-                       <button onClick={() => handleQuickLocation('汐止', 'Xizhi, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30 whitespace-nowrap">汐止</button>
-                       <button onClick={() => handleQuickLocation('雙北', 'Taipei, Taiwan')} className="text-[11px] px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600 rounded-xl text-slate-300 border border-slate-600/30 whitespace-nowrap">雙北</button>
-                       
-                       {/* 顯示使用者儲存的地點 */}
-                       {savedLocations.map((loc, idx) => (
-                         <button 
-                           key={idx} 
-                           onClick={() => handleQuickLocation(loc.label, loc.query)} 
-                           className="text-[11px] px-3 py-1.5 bg-blue-900/30 hover:bg-blue-800/50 rounded-xl text-blue-200 border border-blue-700/30 whitespace-nowrap"
-                         >
-                           {loc.label}
-                         </button>
-                       ))}
-
-                       {/* 新增地點按鈕 */}
-                       <button 
-                         onClick={addCustomLocation} 
-                         className="text-[14px] px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-400 border border-slate-600/50"
-                         title="儲存目前輸入的地點"
-                       >
-                         +
-                       </button>
-                    </div>
+        <main className="flex-1 px-6 py-4 space-y-8">
+          {result || loading ? (
+            <ResultDisplay data={result!} loading={loading} onRetry={handleRetry} displayLocation={displayLocation} isDarkMode={isDarkMode} />
+          ) : (
+            <div className="space-y-8">
+              
+              <div className="space-y-3">
+                <label className={`flex items-center text-sm font-bold uppercase tracking-wider ml-1 ${textSub}`}>
+                  <MapPin size={16} className="mr-2 text-blue-500" /> 地點
+                </label>
+                <div className="relative">
+                  <input type="text" value={displayLocation} onChange={(e) => handleInputChange(e.target.value)} className={`w-full text-lg rounded-2xl px-5 py-4 focus:ring-2 focus:ring-blue-500 outline-none border ${input}`} placeholder="輸入城市..." />
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1 overflow-x-auto max-w-[65%]">
+                     {['泰山', '汐止', '雙北'].map(n => <button key={n} onClick={() => handleQuickLocation(n, n === '雙北' ? 'Taipei' : n)} className={`text-xs px-3 py-1.5 rounded-xl border whitespace-nowrap ${isDarkMode ? 'bg-slate-700/50 border-slate-600 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'}`}>{n}</button>)}
+                     {savedLocations.map((loc, i) => <div key={i} className="relative flex items-center"><button onClick={() => handleQuickLocation(loc.label, loc.query)} className={`text-xs pl-3 pr-6 py-1.5 rounded-xl border ${isDarkMode ? 'bg-blue-900/30 border-blue-700/30 text-blue-200' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>{loc.label}</button><button onClick={(e) => removeLocation(loc.label, e)} className="absolute right-1 text-red-400 hover:text-red-500"><Trash2 size={10} /></button></div>)}
+                     <button onClick={addCustomLocation} className={`w-7 h-7 flex items-center justify-center rounded-full border ${isDarkMode ? 'bg-slate-800 border-slate-600 text-slate-400' : 'bg-white border-slate-300 text-slate-500'}`}>+</button>
                   </div>
                 </div>
-
-                {/* Gender & Style */}
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <label className="flex items-center text-sm font-bold text-slate-400 ml-1 uppercase tracking-wider">
-                      <User size={14} className="mr-2 text-indigo-400" /> 性別
-                    </label>
-                    <div className="flex gap-2 bg-slate-800/30 p-1 rounded-2xl border border-slate-700/50">
-                      {(['Female', 'Male'] as Gender[]).map((g) => (
-                        <button key={g} onClick={() => setGender(g)} className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${gender === g ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>{g === 'Female' ? '女生' : '男生'}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="flex items-center text-sm font-bold text-slate-400 ml-1 uppercase tracking-wider">
-                      <Sparkles size={14} className="mr-2 text-amber-400" /> 風格
-                    </label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {(['Casual', 'Formal', 'Sport'] as Style[]).map((s) => (
-                         <button key={s} onClick={() => setStyle(s)} className={`py-2 px-3 rounded-xl text-xs font-medium border transition-all text-center ${style === s ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'}`}>{s === 'Casual' ? '休閒' : s === 'Formal' ? '正式' : '運動'}</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Personal Color */}
-                <div className="space-y-3">
-                  <label className="flex items-center text-sm font-bold text-slate-400 ml-1 uppercase tracking-wider">
-                    <Palette size={14} className="mr-2 text-pink-400" /> 個人色彩季型
-                  </label>
-                  <div className="relative">
-                    <select value={colorSeason} onChange={(e) => setColorSeason(e.target.value as ColorSeason)} className="w-full bg-slate-800/50 border border-slate-700 text-white text-base rounded-2xl px-5 py-4 appearance-none focus:ring-2 focus:ring-pink-500 outline-none">
-                      {/* 移除火圖示，保持簡潔 */}
-                      <option value="Bright Winter (淨冬/亮冬)">Bright Winter (淨冬/亮冬)</option>
-                      {seasons.filter(s => s !== 'Bright Winter (淨冬/亮冬)').map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">▼</div>
-                  </div>
-                </div>
-
-                {/* Time Selection */}
-                <div className="space-y-3">
-                  <label className="flex items-center text-sm font-bold text-slate-400 ml-1 uppercase tracking-wider">
-                    <Clock size={14} className="mr-2 text-green-400" /> 時間選擇
-                  </label>
-                  <div className="grid grid-cols-4 gap-2">
-                     <button onClick={() => { setTimeOfDay('current'); setTargetDay('today'); }} className={`flex flex-col items-center justify-center py-3 rounded-2xl border transition-all ${timeOfDay === 'current' ? 'bg-green-500/20 border-green-500/50 text-green-300' : 'bg-slate-800/50 border-slate-700 text-slate-400'}`}><span className="text-xs font-bold">🚀 現在</span></button>
-                     {(['morning', 'afternoon', 'evening'] as TimeOfDay[]).map((t) => (
-                      <button key={t} onClick={() => setTimeOfDay(t)} className={`flex flex-col items-center justify-center py-3 rounded-2xl border transition-all ${timeOfDay === t ? 'bg-blue-500/20 border-blue-500/50 text-blue-300' : 'bg-slate-800/50 border-slate-700 text-slate-400'}`}><span className="text-xs">{t === 'morning' ? '早上' : t === 'afternoon' ? '下午' : '晚上'}</span></button>
-                     ))}
-                  </div>
-                  {timeOfDay !== 'current' && (
-                    <div className="flex justify-center gap-4 mt-2 pt-2 border-t border-slate-800">
-                      {(['today', 'tomorrow'] as TargetDay[]).map((d) => (
-                        <button key={d} onClick={() => setTargetDay(d)} className={`text-xs px-4 py-1.5 rounded-full transition-colors ${targetDay === d ? 'bg-slate-700 text-white font-medium' : 'text-slate-500 hover:text-slate-300'}`}>{d === 'today' ? 'Today' : 'Tomorrow'}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Submit Button */}
-                <button 
-                  onClick={handleGenerate} 
-                  disabled={loading} 
-                  className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl font-bold text-white text-xl border-b-4 border-blue-800 shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 hover:scale-[1.01] active:border-b-0 active:translate-y-1 transition-all mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? <Loader2 className="animate-spin mx-auto" /> : '✨ 取得今日穿搭靈感'}
-                </button>
-
               </div>
-            )}
-          </div>
+
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-3">
+                  <label className={`flex items-center text-sm font-bold uppercase ml-1 ${textSub}`}><User size={16} className="mr-2 text-indigo-500" /> 性別</label>
+                  <div className={`flex gap-1 p-1 rounded-2xl border ${card}`}>
+                    {(['Female', 'Male'] as Gender[]).map(g => <button key={g} onClick={() => setGender(g)} className={`flex-1 py-3 rounded-xl text-base font-semibold transition ${gender === g ? 'bg-indigo-500 text-white shadow' : 'text-slate-400'}`}>{g === 'Female' ? '女生' : '男生'}</button>)}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className={`flex items-center text-sm font-bold uppercase ml-1 ${textSub}`}><Sparkles size={16} className="mr-2 text-amber-500" /> 風格</label>
+                  <div className="flex flex-col gap-2">
+                    {(['Casual', 'Formal', 'Sport'] as Style[]).map(s => <button key={s} onClick={() => setStyle(s)} className={`py-2.5 rounded-xl text-sm font-medium border transition ${style === s ? (isDarkMode ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-amber-50 border-amber-300 text-amber-700') : (isDarkMode ? 'bg-slate-800/50 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-600')}`}>{s === 'Casual' ? '休閒' : s === 'Formal' ? '正式' : '運動'}</button>)}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className={`flex items-center text-sm font-bold uppercase ml-1 ${textSub}`}><Palette size={16} className="mr-2 text-pink-500" /> 個人色彩</label>
+                <select value={colorSeason} onChange={(e) => setColorSeason(e.target.value as ColorSeason)} className={`w-full text-base rounded-2xl px-5 py-4 border focus:ring-2 focus:ring-pink-500 outline-none ${input}`}>
+                  {seasons.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-3">
+                <label className={`flex items-center text-sm font-bold uppercase ml-1 ${textSub}`}><Clock size={16} className="mr-2 text-green-500" /> 時間</label>
+                <div className="grid grid-cols-4 gap-2">
+                   <button onClick={() => { setTimeOfDay('current'); setTargetDay('today'); }} className={`py-3 rounded-2xl text-sm border transition ${timeOfDay === 'current' ? (isDarkMode ? 'bg-green-500/20 border-green-500/50 text-green-300' : 'bg-green-50 border-green-300 text-green-700') : (isDarkMode ? 'bg-slate-800/50 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-600')}`}>🚀 現在</button>
+                   {(['morning', 'afternoon', 'evening'] as TimeOfDay[]).map(t => <button key={t} onClick={() => setTimeOfDay(t)} className={`py-3 rounded-2xl text-sm border transition ${timeOfDay === t ? (isDarkMode ? 'bg-blue-500/20 border-blue-500/50 text-blue-300' : 'bg-blue-50 border-blue-300 text-blue-700') : (isDarkMode ? 'bg-slate-800/50 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-600')}`}>{t === 'morning' ? '早上' : t === 'afternoon' ? '下午' : '晚上'}</button>)}
+                </div>
+                {timeOfDay !== 'current' && <div className="flex justify-center gap-3 pt-2">{(['today', 'tomorrow'] as TargetDay[]).map(d => <button key={d} onClick={() => setTargetDay(d)} className={`text-sm px-5 py-1.5 rounded-full ${targetDay === d ? (isDarkMode ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-800') : 'text-slate-400'}`}>{d === 'today' ? '今天' : '明天'}</button>)}</div>}
+              </div>
+
+              <button onClick={handleGenerate} disabled={loading} className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl font-bold text-white text-xl shadow-xl hover:scale-[1.01] transition disabled:opacity-50">{loading ? <Loader2 className="animate-spin mx-auto" /> : '✨ 取得穿搭建議'}</button>
+            </div>
+          )}
         </main>
       </div>
     </div>
