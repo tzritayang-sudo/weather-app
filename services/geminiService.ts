@@ -8,7 +8,7 @@ const getApiKey = (keyName: string) => {
   return envKey ? envKey.trim() : null;
 }
 
-// 🔥 強化版天氣翻譯
+// 🌤️ 天氣狀況翻譯
 const translateCondition = (cond: string): string => {
   if (!cond) return '多雲';
   const c = cond.toLowerCase().trim();
@@ -25,34 +25,19 @@ const translateCondition = (cond: string): string => {
   return cond; 
 };
 
-// 🎨 根據個人色彩生成顏色關鍵字
+// 🎨 簡化配色關鍵字
 const getColorKeywords = (colorSeason: ColorSeason): string => {
   const s = colorSeason.toLowerCase();
   
-  // 冬季色系
-  if (s.includes('bright winter') || s.includes('淨冬') || s.includes('亮冬')) return 'black white silver icy blue';
-  if (s.includes('true winter') || s.includes('正冬')) return 'black navy burgundy white';
-  if (s.includes('dark winter') || s.includes('深冬')) return 'black charcoal navy deep purple';
+  if (s.includes('winter')) return 'cool winter fashion';
+  if (s.includes('spring')) return 'warm spring outfit';
+  if (s.includes('summer')) return 'soft summer style';
+  if (s.includes('autumn')) return 'earthy autumn look';
   
-  // 春季色系
-  if (s.includes('light spring') || s.includes('淨春')) return 'white cream light blue coral';
-  if (s.includes('true spring') || s.includes('正春')) return 'coral yellow green turquoise';
-  if (s.includes('bright spring') || s.includes('亮春')) return 'bright yellow orange pink';
-  
-  // 夏季色系
-  if (s.includes('light summer') || s.includes('淨夏')) return 'lavender soft pink light grey';
-  if (s.includes('true summer') || s.includes('正夏')) return 'soft blue rose grey';
-  if (s.includes('muted summer') || s.includes('柔夏')) return 'muted blue grey mauve';
-  
-  // 秋季色系
-  if (s.includes('soft autumn') || s.includes('柔秋')) return 'olive camel beige moss green';
-  if (s.includes('true autumn') || s.includes('正秋')) return 'rust orange burnt sienna mustard';
-  if (s.includes('dark autumn') || s.includes('深秋')) return 'brown burgundy forest green';
-  
-  return 'neutral'; // 預設
+  return 'minimalist style'; 
 };
 
-// 🔍 精準圖片搜尋
+// 📸 Pexels 圖片搜尋
 const fetchPexelsImages = async (
   gender: Gender, 
   style: Style, 
@@ -62,19 +47,17 @@ const fetchPexelsImages = async (
   if (!PEXELS_API_KEY) return [];
   
   try {
-    // 風格對應
     const styleMap = {
-      'Casual': 'street style casual outfit',
-      'Formal': 'business formal suit professional',
-      'Sport': 'sportswear athletic activewear'
+      'Casual': 'casual street',
+      'Formal': 'elegant business',
+      'Sport': 'sporty fitness'
     };
     
     const genderTerm = gender === 'Female' ? 'woman' : 'man';
     const styleTerm = styleMap[style];
-    const colorKeywords = getColorKeywords(colorSeason);
+    const colorTerm = getColorKeywords(colorSeason);
     
-    // 組合精準搜尋詞
-    const searchQuery = `${genderTerm} ${styleTerm} ${colorKeywords} fashion portrait`;
+    const searchQuery = `${genderTerm} ${styleTerm} ${colorTerm} portrait`;
     
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=3&orientation=portrait`;
     const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
@@ -88,15 +71,17 @@ const fetchPexelsImages = async (
         src: { medium: p.src.medium, large: p.src.large }, 
         alt: p.alt || searchQuery 
     }));
-  } catch (error) { 
-    console.error('Pexels 圖片搜尋錯誤:', error);
-    return []; 
-  }
+  } catch (error) { return []; }
 };
 
-const fetchRealWeather = async (location: string) => {
+// 🌡️ 天氣資料抓取 (精準化)
+const fetchRealWeather = async (location: string, displayLocation: string) => {
   try {
-    const searchLocation = location.includes('Taiwan') ? location : `${location}, Taiwan`;
+    const isKnownLocation = ['汐止', '泰山', '雙北'].some(l => displayLocation.includes(l));
+    const searchLocation = isKnownLocation 
+      ? `${location},New+Taipei+City,Taiwan`
+      : `${location},Taiwan`;
+      
     const response = await fetch(`https://wttr.in/${encodeURIComponent(searchLocation)}?format=j1`);
     if (!response.ok) throw new Error('Weather API Error');
     const data = await response.json();
@@ -112,7 +97,10 @@ const fetchRealWeather = async (location: string) => {
       chanceofrain: parseInt(today.hourly[0].chanceofrain),
       condition: translateCondition(current.weatherDesc[0].value)
     };
-  } catch (e) { return null; }
+  } catch (e) { 
+    console.error("天氣 API 錯誤:", e);
+    return null; 
+  }
 };
 
 const repairJson = (jsonString: string) => {
@@ -125,7 +113,7 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
   weather: { location: "Taipei", temperature: 25, feels_like: 27, maxtempC: 28, mintempC: 22, humidity: "70%", precipitation: "20%", condition: "多雲" },
   outfit: {
     summary: "預設建議",
-    reason: "系統暫時忙碌，建議穿著舒適透氣。",
+    reason: "系統暫時忙碌,建議穿著舒適透氣。",
     tips: "請稍後再試。",
     color_palette: ["白色", "黑色", "藍色"],
     items: [
@@ -140,6 +128,7 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
   targetDay: "today"
 };
 
+// 🤖 主函式:取得 AI 穿搭建議
 export const getGeminiSuggestion = async (
   location: string, 
   displayLocation: string, 
@@ -150,21 +139,23 @@ export const getGeminiSuggestion = async (
   targetDay: TargetDay
 ): Promise<WeatherOutfitResponse> => {
   const GOOGLE_API_KEY = getApiKey('VITE_GOOGLE_API_KEY');
-  if (!GOOGLE_API_KEY) {
-      return { ...FALLBACK_DATA, weather: { ...FALLBACK_DATA.weather, location: displayLocation } };
-  }
+  if (!GOOGLE_API_KEY) return { ...FALLBACK_DATA, weather: { ...FALLBACK_DATA.weather, location: displayLocation } };
 
-  const realWeather = await fetchRealWeather(location);
-  const weatherInfo = realWeather ? `真實天氣：${realWeather.temp_C}°C, 體感${realWeather.FeelsLikeC}°C, 濕度${realWeather.humidity}%, 降雨率${realWeather.chanceofrain}%` : '';
+  const realWeather = await fetchRealWeather(location, displayLocation);
+  
+  const timeDescription = `${targetDay === 'tomorrow' ? '明天' : '今天'}${timeOfDay === 'morning' ? '早上' : timeOfDay === 'afternoon' ? '下午' : '晚上'}`;
+  const weatherInfo = realWeather 
+    ? `預測時間點「${timeDescription}」的參考天氣為:氣溫 ${realWeather.temp_C}°C (體感 ${realWeather.FeelsLikeC}°C), 天氣狀況 ${realWeather.condition}, 最高溫 ${realWeather.maxtempC}°C, 最低溫 ${realWeather.mintempC}°C` 
+    : '天氣資訊取得中';
 
   const prompt = `
-    你是一位頂尖時尚造型師。根據以下條件提供穿搭建議。
+    你是一位頂尖時尚造型師。請根據以下條件提供一套完整的穿搭建議。
     - 使用者: ${gender}, 風格 ${style}, 個人色彩: ${colorSeason}
     - 地點: ${displayLocation}
-    - 時間: ${targetDay} ${timeOfDay}
-    - 天氣: ${weatherInfo}
+    - 預測時間: ${timeDescription}
+    - 詳細天氣資訊: ${weatherInfo}
 
-    嚴格依照此 JSON 格式回傳：
+    請嚴格依照此 JSON 格式回傳,不要有任何多餘的文字:
     {
       "weather": { "location": "${displayLocation}", "temperature": 25, "feels_like": 28, "maxtempC": 30, "mintempC": 24, "humidity": "75%", "precipitation": "10%" },
       "outfit": {
@@ -193,11 +184,15 @@ export const getGeminiSuggestion = async (
     const parsedData = JSON.parse(repairJson(text));
 
     if (realWeather) {
-        parsedData.weather = { ...parsedData.weather, ...realWeather, humidity: `${realWeather.humidity}%`, precipitation: `${realWeather.chanceofrain}%` };
+        parsedData.weather = { 
+          ...parsedData.weather, 
+          ...realWeather, 
+          humidity: `${realWeather.humidity}%`, 
+          precipitation: `${realWeather.chanceofrain}%` 
+        };
     }
     parsedData.targetDay = targetDay;
 
-    // 🎯 使用優化後的圖片搜尋
     const images = await fetchPexelsImages(gender, style, colorSeason);
     parsedData.generatedImages = images.slice(0, 3);
     
@@ -210,10 +205,12 @@ export const getGeminiSuggestion = async (
          ...safeData.weather, 
          location: displayLocation, 
          temperature: realWeather.temp_C,
+         feels_like: realWeather.FeelsLikeC,
          maxtempC: realWeather.maxtempC,
          mintempC: realWeather.mintempC,
          humidity: `${realWeather.humidity}%`,
-         precipitation: `${realWeather.chanceofrain}%`
+         precipitation: `${realWeather.chanceofrain}%`,
+         condition: realWeather.condition
        };
     }
     return safeData;
