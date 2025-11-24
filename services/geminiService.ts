@@ -1,7 +1,6 @@
 import { WeatherOutfitResponse, Gender, Style, ColorSeason, TimeOfDay, TargetDay } from '../types';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// 🔥 修正：使用最新的 2.5 模型 (這是目前 Google 官方推薦的)
 const MODEL_NAME = "gemini-2.5-flash";
 
 const getApiKey = (keyName: string) => {
@@ -10,86 +9,57 @@ const getApiKey = (keyName: string) => {
   return envKey.trim();
 }
 
-// 色彩翻譯機：把 AI 給的怪顏色轉成 Pexels 找得到的關鍵字
-const getSearchColor = (hexColor: string, originalColorName: string): string => {
-  const name = originalColorName.toLowerCase();
-  if (name.includes('electric') || name.includes('neon')) return 'bright blue';
-  if (name.includes('hot pink') || name.includes('fuchsia')) return 'bright pink';
-  if (name.includes('chartreuse')) return 'lime green';
-  if (name.includes('mauve')) return 'purple';
-  if (name.includes('taupe')) return 'brown';
-  return name; 
-};
-
 // Pexels 圖片搜尋
 const fetchPexelsImages = async (query: string) => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
-  if (!PEXELS_API_KEY) {
-    console.warn('⚠️ No Pexels API key found');
-    return [];
-  }
+  if (!PEXELS_API_KEY) return [];
 
   try {
-    // 修正關鍵字策略：加上 "fashion style", "clothing", "outfit" 等字眼，並過濾掉 "no person"
-    const safeQuery = `${query} fashion style clothing outfit -flatlay -vector`;
+    // 🔥 關鍵修正：搜尋時強制加上 "cool tone", "high contrast" 等亮冬型關鍵字，並排除暖色
+    const safeQuery = `${query} outfit street style high quality -warm -beige -orange -sepia`;
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(safeQuery)}&per_page=3&orientation=portrait`;
     
-    const response = await fetch(url, {
-      headers: { Authorization: PEXELS_API_KEY }
-    });
-
+    const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
     if (!response.ok) return [];
-
     const data = await response.json();
+    
     return data.photos.map((photo: any) => ({
       id: photo.id,
       url: photo.url,
-      src: {
-        medium: photo.src.medium,
-        large: photo.src.large
-      },
+      src: { medium: photo.src.medium, large: photo.src.large },
       alt: photo.alt || query
     }));
   } catch (error) {
-    console.error('Pexels error:', error);
     return [];
   }
 };
 
-// 真實天氣查詢 (wttr.in)
+// 真實天氣查詢
 const fetchRealWeather = async (location: string) => {
   try {
-    // 強制加上 Taiwan 以避免抓到中國泰山
     const searchLocation = location.includes('Taiwan') ? location : `${location}, Taiwan`;
-    // 使用 format=j1 取得詳細 JSON (包含濕度)
     const response = await fetch(`https://wttr.in/${encodeURIComponent(searchLocation)}?format=j1`);
-    
     if (!response.ok) throw new Error('Weather API Error');
-    
     const data = await response.json();
     const current = data.current_condition[0];
     
     return {
       temp: parseInt(current.temp_C),
       condition: current.weatherDesc[0].value,
-      humidity: parseInt(current.humidity), // 抓取濕度
+      humidity: parseInt(current.humidity),
       feelsLike: parseInt(current.FeelsLikeC),
       precip: current.precipMM > 0 ? `${current.precipMM}mm` : '0%'
     };
   } catch (e) {
-    console.warn("Weather API failed, falling back to AI simulation", e);
     return null;
   }
 };
 
-// 清理 JSON 字串 (防呆)
 const repairJson = (jsonString: string) => {
     let clean = jsonString.replace(/``````/g, '').trim();
     const firstBrace = clean.indexOf('{');
     const lastBrace = clean.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace !== -1) {
-        clean = clean.substring(firstBrace, lastBrace + 1);
-    }
+    if (firstBrace !== -1 && lastBrace !== -1) clean = clean.substring(firstBrace, lastBrace + 1);
     return clean;
 };
 
@@ -105,106 +75,79 @@ export const getGeminiSuggestion = async (
   const GOOGLE_API_KEY = getApiKey('VITE_GOOGLE_API_KEY');
   if (!GOOGLE_API_KEY) throw new Error("Missing Google API Key");
 
-  // 1. 先抓真實天氣
   const realWeather = await fetchRealWeather(location);
-  let weatherInfo = "";
-  
-  if (realWeather) {
-      weatherInfo = `
-      Current Real Weather in ${location}:
-      - Temperature: ${realWeather.temp}°C
-      - Feels Like: ${realWeather.feelsLike}°C
-      - Humidity: ${realWeather.humidity}% (Crucial: Consider humidity for comfort)
-      - Condition: ${realWeather.condition}
-      - Rain: ${realWeather.precip}
-      `;
-  } else {
-      weatherInfo = `Simulate weather for ${location} in ${targetDay === 'today' ? 'current time' : 'tomorrow'}.`;
-  }
+  let weatherInfo = realWeather 
+    ? `真實天氣: 氣溫 ${realWeather.temp}°C, 體感 ${realWeather.feelsLike}°C, 濕度 ${realWeather.humidity}%, 狀況 ${realWeather.condition}`
+    : `模擬天氣`;
 
-  // 2. 組裝 Prompt
+  // 🔥 關鍵修正：Prompt 強制要求「繁體中文回應」但「保留英文關鍵字給圖片搜尋」
   const prompt = `
-    Act as a professional fashion stylist.
-    User Profile: ${gender}, ${style} style, Personal Color: ${colorSeason}.
-    Time: ${targetDay} ${timeOfDay}.
-    
+    你是一位專業的時尚造型師。
+    使用者：${gender}, 風格 ${style}, 個人色彩季型: ${colorSeason} (Bright Winter 亮冬型特點：高對比、鮮豔、冷色調，如寶石藍、正紅、黑、白。絕對避免大地色、卡其色、橘色)。
+    時間：${targetDay} ${timeOfDay}。
     ${weatherInfo}
 
-    【嚴格要求】
-    1. 濕度判斷：若濕度 > 70%，請避免厚重棉質，推薦透氣排汗材質；若濕度 < 40%，推薦保濕親膚材質。
-    2. 圖示選擇：請從以下清單中選擇最準確的 icon key (items.name 必須包含這些關鍵字):
-       - 上身: "t-shirt", "shirt", "hoodie", "coat", "jacket"
-       - 下身: "shorts", "skirt", "dress", "pants", "jeans"
-       - 鞋子: "sneakers", "boots", "sandals", "shoes"
-       - 配件: "bag", "umbrella", "hat", "glasses"
-    3. 顏色命名：請使用標準且常見的英文色名 (例如 "Royal Blue" 而非 "Electric Blue") 以利圖片搜尋。
-
-    Return valid JSON only:
+    請嚴格遵守以下 JSON 格式回傳，不要有任何 Markdown 標記：
     {
       "weather": {
         "location": "${location}",
         "temperature": 25,
-        "condition": "Sunny",
+        "condition": "多雲時晴",
         "humidity": "75%",
         "precipitation": "10%",
         "feels_like": 28
       },
       "outfit": {
-        "summary": "One sentence summary",
-        "reason": "Why this matches weather & color season",
-        "tips": "One specific advice for humidity/temp (e.g., 'High humidity today, wear breathable linen.')",
-        "color_palette": ["Hex1", "Hex2", "Hex3", "Hex4"],
+        "summary": "一句簡短的繁體中文穿搭總結",
+        "reason": "用繁體中文解釋為什麼這樣穿（強調亮冬型的高對比配色）",
+        "tips": "針對濕度或防曬的繁體中文貼心小提醒",
+        "color_palette": ["Hex1", "Hex2", "Hex3", "Hex4"], 
         "items": [
-          {"name": "White T-Shirt", "type": "Top", "color": "White", "material": "Cotton", "reason": "Breathable"},
-          {"name": "Denim Shorts", "type": "Bottom", "color": "Blue", "material": "Denim", "reason": "Cool"}
+          {"name": "單品名稱(繁體中文)", "type": "Top", "color": "顏色名稱(繁體中文)", "material": "材質(中文)", "reason": "推薦原因(中文)"},
+          {"name": "單品名稱(繁體中文)", "type": "Bottom", "color": "顏色名稱(繁體中文)", "material": "材質(中文)", "reason": "推薦原因(中文)"}
         ],
-        "visualPrompts": ["White t-shirt and blue denim shorts fashion outfit street style"]
+        "visualPrompts": ["High contrast fashion outfit ${gender} ${style} royal blue and black street style"] 
       }
     }
+    
+    注意：
+    1. items.name 請用中文，例如「寶石藍 T恤」。
+    2. visualPrompts 必須用英文，且必須包含亮冬型關鍵字 (如 Royal Blue, Black, White, High Contrast)，不要出現 Beige 或 Khaki。
   `;
 
   try {
     const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-    
     const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    const parsedData = JSON.parse(repairJson(text));
+    const parsedData = JSON.parse(repairJson(result.response.text()));
 
-    // 如果有真實天氣數據，覆蓋 AI 的幻覺數據
     if (realWeather) {
         parsedData.weather = {
             ...parsedData.weather,
             temperature: realWeather.temp,
-            condition: realWeather.condition,
+            condition: realWeather.condition, // 這裡可能會是英文，若要中文需在 ResultDisplay 翻譯，但先求有
             humidity: `${realWeather.humidity}%`,
             feels_like: realWeather.feelsLike,
             precipitation: realWeather.precip
         };
     }
 
-    // 3. 抓取圖片 (平行處理加速)
     if (parsedData.outfit?.visualPrompts?.length > 0) {
-        // 嘗試用更精準的關鍵字搜尋
         const mainQuery = parsedData.outfit.visualPrompts[0];
-        const backupColor = parsedData.outfit.items?.[0]?.color || "fashion";
-        const backupQuery = `${backupColor} ${gender} fashion outfit`;
-
+        // 備用搜尋：強制加上亮冬關鍵字
+        const backupQuery = `winter color type fashion ${gender} royal blue black high contrast`;
+        
         const [images1, images2] = await Promise.all([
             fetchPexelsImages(mainQuery),
             fetchPexelsImages(backupQuery)
         ]);
-        
-        // 合併結果，優先使用精準搜尋
         parsedData.generatedImages = [...images1, ...images2].slice(0, 3);
     }
     
     return parsedData;
 
   } catch (e) {
-    console.error("Gemini API Error:", e);
+    console.error(e);
     throw e;
   }
 };
