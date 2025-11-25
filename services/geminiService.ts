@@ -16,18 +16,17 @@ const getDateString = (targetDay: TargetDay): string => {
   return date.toISOString().split('T')[0];
 };
 
-// 智慧建議引擎 (數據判斷)
+// 智慧建議引擎 (數據判斷，保留V22的核心邏輯)
 const generateSmartAdvice = (temp: number, rainChance: number, humidity: number): string => {
   let advice = "";
-
   if (temp >= 30) advice += "極熱，推薦涼感透氣材質，以亮色系增加清爽感。";
   else if (temp >= 26) advice += "悶熱，建議短袖或薄長袖，材質要吸汗。";
-  else if (temp >= 20) advice += "舒適，薄長袖或短袖配薄外套，可運用多層次穿搭。";
+  else if (temp >= 20) advice += "舒適，薄長袖或短袖配薄外套，多層次穿搭。";
   else if (temp >= 16) advice += "轉涼，建議長袖、針織衫加防風外套，注意保暖。";
-  else if (temp >= 12) advice += "寒冷，一定要穿厚外套或羽絨衣，可利用圍巾增加造型重點。";
+  else if (temp >= 12) advice += "寒冷，一定要穿厚外套或羽絨衣，圍巾增加造型。";
   else advice += "寒流等級，務必保暖，建議洋蔥式穿搭。";
 
-  if (rainChance >= 60) advice += " 降雨機率高，推薦時尚雨靴或防水鞋，避免淺色長褲。";
+  if (rainChance >= 60) advice += " 降雨機率高，推薦時尚雨靴或防水鞋，避開淺色長褲。";
   else if (rainChance >= 30) advice += " 可能下雨，建議隨身攜帶折疊傘。";
   
   return advice;
@@ -111,15 +110,16 @@ const repairJson = (jsonString: string) => {
 const FALLBACK_DATA: WeatherOutfitResponse = {
   weather: { location: "Taipei", temperature: 22, feels_like: 20, maxtempC: 24, mintempC: 20, humidity: "75%", precipitation: "30%", condition: "多雲" },
   outfit: {
-    summary: "俐落保暖公式：發熱衣 + 針織衫 + 風衣", 
-    reason: "面對濕冷天氣，實用與時尚兼具的關鍵在於『外防風、內保暖』。深藍色風衣不僅防風防雨，更能修飾身形，內搭亮色系發熱衣，在保暖的同時點亮整體造型，展現個人色彩的魅力。",
-    tips: "雨天建議搭配深色靴子，既防水又帥氣。可戴上簡約的銀飾耳環，增加精緻感。",
+    summary: "防風保暖公式：防水風衣 + 亮色發熱衣", 
+    reason: "汐止濕冷有雨，外層首選『深藍防水風衣』擋雨抗風。內搭選擇『寶藍色發熱衣』，進室內脫下外套後，依然亮眼有型，符合您的個人色彩。",
+    tips: "通勤車上冷氣強，風衣可當小毯子。建議穿『黑色切爾西雨靴』，防水又修飾腿型。別忘了帶折疊傘！",
     color_palette: ["米白", "海軍藍", "淺灰"],
     items: [
-      { name: "高領發熱衣", color: "米白", material: "機能布", type: "top" },
-      { name: "直筒牛仔褲", color: "藍色", material: "丹寧", type: "pants" },
-      { name: "防水短靴", color: "黑色", material: "皮革", type: "shoes" },
-      { name: "風衣外套", color: "深藍", material: "尼龍", type: "jacket" }
+      { name: "高領發熱衣", color: "寶藍", material: "機能布", type: "top" },
+      { name: "直筒牛仔褲", color: "深藍", material: "丹寧", type: "pants" },
+      { name: "切爾西雨靴", color: "黑色", material: "橡膠", type: "shoes" },
+      { name: "尼龍後背包", color: "黑色", material: "尼龍", type: "bag" },
+      { name: "防水風衣", color: "深藍", material: "尼龍", type: "jacket" }
     ],
     visualPrompts: ["woman wearing navy trench coat and blue jeans street style"]
   },
@@ -156,8 +156,9 @@ export const getGeminiSuggestion = async (
     ? `預測日期 ${realWeather.date} 的天氣為：日均溫 ${realWeather.temp_C}°C, 濕度 ${realWeather.humidity}%, 降雨機率 ${realWeather.chanceofrain}%` 
     : '天氣資訊取得中';
 
+  // 🔍 Prompt 調整：嚴格控制字數與格式，避免太長
   const prompt = `
-    你是一位頂尖的個人造型顧問，擅長結合「實用機能」與「時尚美感」。使用者希望在應對天氣的同時，依然能展現個人風格。
+    你是一位專業的個人造型顧問。請為使用者提供一份「實用與時尚兼具」的穿搭建議。
 
     現況資料：
     - 使用者: ${gender}, 風格 ${style}, 個人色彩: ${colorSeason}
@@ -166,19 +167,19 @@ export const getGeminiSuggestion = async (
     - 天氣數據: ${weatherInfo}
     - 關鍵策略: ${dynamicAdvice}
 
-    請依照此 JSON 格式回傳 (語氣要專業、具體且有美感)：
+    請依照此 JSON 格式回傳 (請將長篇大論拆解到以下三個欄位，保持精簡)：
     {
       "weather": { "location": "${displayLocation}", "temperature": 20, "feels_like": 18, "maxtempC": 22, "mintempC": 17, "humidity": "80%", "precipitation": "20%" },
       "outfit": {
-        "summary": "具體且有型的穿搭公式 (例如：長版風衣 + 亮色內搭)", 
-        "reason": "請解釋如何『兼顧天氣與時尚』。例如：汐止濕冷，推薦防風外套來禦寒，但內搭可以選擇符合個人色彩(${colorSeason})的亮色單品，讓整體造型不沉悶，既保暖又有層次感。",
-        "tips": "請提供提升質感的實用建議 (例如：雨天穿帥氣的切爾西雨靴取代球鞋，既防水又能拉長腿部線條。)",
+        "summary": "【公式】最核心的穿搭重點 (例如：防水風衣 + 亮色發熱衣 + 雨靴)", 
+        "reason": "【天氣與實用】(限50字內) 解釋為什麼這樣穿能應對天氣。例如：汐止濕冷，外層防風防水是關鍵，內搭發熱衣保暖，進室內脫外套也不悶熱。",
+        "tips": "【時尚與細節】(限50字內) 提供配色或配件建議。例如：內搭選用${colorSeason}色系點亮造型。通勤冷氣強，外套可隨身。建議穿深色褲防髒。",
         "color_palette": ["顏色1", "顏色2", "顏色3"],
         "items": [
-          {"name": "具體單品名 (如：高領發熱衣)", "color": "顏色", "material": "材質", "type": "top"},
-          {"name": "具體單品名 (如：修身直筒褲)", "color": "顏色", "material": "材質", "type": "pants"},
-          {"name": "具體單品名 (如：切爾西雨靴)", "color": "顏色", "material": "材質", "type": "shoes"},
-          {"name": "具體單品名 (如：極簡皮革包)", "color": "顏色", "material": "材質", "type": "bag"},
+          {"name": "具體單品 (如：高領發熱衣)", "color": "顏色", "material": "材質", "type": "top"},
+          {"name": "具體單品 (如：深色直筒褲)", "color": "顏色", "material": "材質", "type": "pants"},
+          {"name": "具體單品 (如：切爾西雨靴)", "color": "顏色", "material": "材質", "type": "shoes"},
+          {"name": "具體單品 (如：尼龍後背包)", "color": "顏色", "material": "材質", "type": "bag"},
           {"name": "外套/配件 (如：長版風衣)", "color": "顏色", "material": "材質", "type": "jacket"} 
         ],
         "visualPrompts": ["給 Pexels 的精確指令，包含具體單品名稱與風格，例如 'woman wearing navy trench coat and chelsea boots street style'"]
