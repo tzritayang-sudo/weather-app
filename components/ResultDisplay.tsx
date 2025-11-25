@@ -15,6 +15,7 @@ const translateWeather = (cond: string) => {
   return cond; 
 };
 
+// 自定義褲子圖示
 const PantsIcon = ({ size = 24, color = "currentColor", ...props }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M6 4h12v3h-12z" /> <path d="M6 7v13a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-8h2v8a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-13" />
@@ -51,17 +52,26 @@ const getColorHex = (colorName: string): string => {
   return '#94a3b8'; 
 };
 
+// 🔥 修正後的圖示判斷邏輯
 const getIcon = (type: string | undefined, name: string | undefined) => {
-  const t = (type || '').toLowerCase(), n = (name || '').toLowerCase();
+  const t = (type || '').toLowerCase();
+  const n = (name || '').toLowerCase();
+  
+  // 1. 先判斷具體配件
   if (t.includes('watch') || n.includes('錶')) return Watch;
-  if (t.includes('shoe') || n.includes('鞋')) return Footprints;
-  if (t.includes('pant') || n.includes('褲') || t.includes('jeans')) return PantsIcon;
-  if (t.includes('jacket') || n.includes('外套') || n.includes('衣')) return Wind;
-  if (t.includes('top') || n.includes('t恤') || n.includes('衫')) return Shirt;
+  if (t.includes('shoe') || n.includes('鞋') || n.includes('靴')) return Footprints;
+  if (t.includes('pant') || t.includes('jeans') || n.includes('褲')) return PantsIcon;
   if (t.includes('bag') || n.includes('包')) return ShoppingBag;
   if (n.includes('傘')) return Umbrella;
   if (n.includes('鏡')) return Glasses;
-  return Shirt;
+
+  // 2. 再判斷外套 (關鍵修正：讓外套優先於上衣被抓出來)
+  if (t.includes('jacket') || t.includes('coat') || n.includes('外套') || n.includes('大衣') || n.includes('夾克')) return Wind;
+
+  // 3. 最後才是上衣
+  if (t.includes('top') || t.includes('shirt') || n.includes('t恤') || n.includes('衫') || n.includes('上衣')) return Shirt;
+  
+  return Shirt; // 預設
 };
 
 interface Props { data: WeatherOutfitResponse; loading: boolean; onRetry: () => void; displayLocation: string; isDarkMode: boolean; }
@@ -97,7 +107,6 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
   const timeLabel = data.targetDay === 'tomorrow' ? '明天' : '現在';
   const weatherCondition = translateWeather(data.weather.condition || '');
   
-  // 🌤️ 天氣圖示判斷優化
   let WeatherIcon = Cloud;
   if (weatherCondition.includes('雨')) WeatherIcon = CloudRain;
   else if (weatherCondition.includes('雷')) WeatherIcon = CloudLightning;
@@ -106,6 +115,7 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
   return (
     <div className="w-full max-w-md mx-auto space-y-8 pb-20 animate-fade-in-up">
       
+      {/* 天氣卡片 */}
       <div className={`rounded-[2.5rem] p-8 relative overflow-hidden ${weatherCardBg} shadow-xl`}>
         <div className="absolute -right-10 -top-10 opacity-10 rotate-12 pointer-events-none">
           <WeatherIcon size={240} fill="currentColor" className={isDarkMode ? 'text-white' : 'text-blue-900'} />
@@ -158,6 +168,7 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
         </div>
       </div>
 
+      {/* 穿搭 Tips */}
       {data.outfit.tips && (
         <div className={`p-6 rounded-3xl text-sm leading-relaxed tracking-wide border flex gap-3 ${isDarkMode ? 'bg-amber-900/20 border-amber-800/30 text-amber-100' : 'bg-amber-50 border-amber-100 text-amber-900'}`}>
           <Sparkles className="shrink-0 mt-0.5 text-amber-400" size={18} />
@@ -165,6 +176,7 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
         </div>
       )}
 
+      {/* 單品清單 */}
       <div className="grid grid-cols-2 gap-4">
         {displayItems.map((item: any, i: number) => {
           const isBlack = item.hexColor === '#1a1a1a';
@@ -186,6 +198,7 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
         })}
       </div>
 
+      {/* 推薦配色 */}
       <div className={`rounded-[2rem] p-8 flex flex-col items-center text-center ${card}`}>
         <h3 className={`text-xs font-bold tracking-[0.25em] mb-6 uppercase ${textSub}`}>推薦配色</h3>
         <div className="flex gap-6">
@@ -195,6 +208,7 @@ const ResultDisplay: React.FC<Props> = ({ data, loading, onRetry, displayLocatio
         </div>
       </div>
 
+      {/* 穿搭靈感圖片 */}
       {data.generatedImages && data.generatedImages.length > 0 && (
         <div className="space-y-6 pt-2">
           <h3 className={`text-xs font-bold tracking-[0.25em] px-2 uppercase ${textSub}`}>穿搭靈感</h3>
