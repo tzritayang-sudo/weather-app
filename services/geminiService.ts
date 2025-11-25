@@ -46,12 +46,15 @@ const translateCondition = (cond: string): string => {
   return cond; 
 };
 
+// 🔥 V31 修正：搜尋邏輯極簡化
 const fetchPexelsImages = async (searchQuery: string): Promise<any[]> => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
   if (!PEXELS_API_KEY || !searchQuery) return [];
   
   try {
-    const finalQuery = `${searchQuery} outfit fashion clothing full body -landscape -building`;
+    // 不再加一堆雜亂的關鍵字，只保留最核心的 "outfit"
+    // 讓 AI 的簡短關鍵字直接發揮作用
+    const finalQuery = `${searchQuery} outfit`;
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(finalQuery)}&per_page=3&orientation=portrait`;
     const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
     
@@ -111,9 +114,8 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
   weather: { location: "Taipei", temperature: 22, feels_like: 20, maxtempC: 24, mintempC: 20, humidity: "75%", precipitation: "30%", condition: "多雲" },
   outfit: {
     summary: "防風保暖公式：防水風衣 + 亮色發熱衣", 
-    // 🔥 這裡直接把重點全部合併，確保一定看得到
-    reason: "汐止濕冷，建議外層穿深藍防水風衣擋雨抗風，內搭寶藍色發熱衣保暖。進室內脫外套後，亮色內搭依然有型，符合您的個人色彩。",
-    tips: "汐止濕冷，建議外層穿深藍防水風衣擋雨抗風，內搭寶藍色發熱衣保暖。通勤車上冷氣強，外套可隨身。雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。別忘了帶折疊傘！",
+    reason: "汐止濕冷，建議外層穿深藍防水風衣擋雨抗風。\n\n內搭寶藍色發熱衣保暖。進室內脫外套後，亮色內搭依然有型。",
+    tips: "🌧️ 【天氣重點】汐止濕冷，建議外層穿深藍防水風衣擋雨抗風。\n\n🧥 【穿搭實戰】內搭寶藍色發熱衣保暖，進室內脫外套後，亮色內搭依然有型。\n\n🚇 【通勤細節】雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。別忘了帶折疊傘！",
     color_palette: ["米白", "海軍藍", "淺灰"],
     items: [
       { name: "高領發熱衣", color: "寶藍", material: "機能布", type: "top" },
@@ -122,7 +124,7 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
       { name: "尼龍後背包", color: "黑色", material: "尼龍", type: "bag" },
       { name: "防水風衣", color: "深藍", material: "尼龍", type: "jacket" }
     ],
-    visualPrompts: ["woman wearing navy trench coat and blue jeans street style"]
+    visualPrompts: ["navy trench coat woman street style"]
   },
   generatedImages: [],
   targetDay: "today"
@@ -167,13 +169,13 @@ export const getGeminiSuggestion = async (
     - 天氣數據: ${weatherInfo}
     - 關鍵策略: ${dynamicAdvice}
 
-    請依照此 JSON 格式回傳 (請注意 tips 欄位會直接顯示在畫面上，請把所有重點都濃縮在這裡)：
+    請依照此 JSON 格式回傳 (請務必在 tips 欄位中使用 '\\n\\n' 來換行，讓排版清晰)：
     {
       "weather": { "location": "${displayLocation}", "temperature": 20, "feels_like": 18, "maxtempC": 22, "mintempC": 17, "humidity": "80%", "precipitation": "20%" },
       "outfit": {
         "summary": "【穿搭公式】(例如：防水風衣 + 亮色發熱衣 + 雨靴)", 
-        "reason": "不用填太長，重點放在 tips",
-        "tips": "【天氣重點】汐止濕冷，降雨機率${realWeather ? realWeather.chanceofrain : 60}%，外層防水防風是關鍵。【穿搭實戰】建議內搭發熱衣保暖，進室內脫外套也不悶熱。內搭選用${colorSeason}色系點亮造型。【通勤細節】雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。務必攜帶折疊傘。",
+        "reason": "簡短帶過即可",
+        "tips": "🌧️ 【天氣重點】汐止濕冷，降雨機率高，外層防風防水是關鍵。\\n\\n🧥 【穿搭實戰】內搭發熱衣保暖，進室內脫外套後，亮色內搭依然有型。內搭選用${colorSeason}色系點亮造型。\\n\\n🚇 【通勤細節】雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。務必攜帶折疊傘。",
         "color_palette": ["顏色1", "顏色2", "顏色3"],
         "items": [
           {"name": "具體單品 (如：高領發熱衣)", "color": "顏色", "material": "材質", "type": "top"},
@@ -182,7 +184,8 @@ export const getGeminiSuggestion = async (
           {"name": "具體單品 (如：尼龍後背包)", "color": "顏色", "material": "材質", "type": "bag"},
           {"name": "外套/配件 (如：長版風衣)", "color": "顏色", "material": "材質", "type": "jacket"} 
         ],
-        "visualPrompts": ["給 Pexels 的精確指令，包含具體單品名稱與風格，例如 'woman wearing navy trench coat and chelsea boots street style'"]
+        // 🔥 V31 重點：要求 AI 給出「極簡關鍵字」，提高搜尋成功率
+        "visualPrompts": ["請給我一組英文關鍵字，只包含『性別』、『主要外套/上衣』、『風格』即可，不要太長。例如：'woman trench coat street style'"]
       }
     }
   `;
