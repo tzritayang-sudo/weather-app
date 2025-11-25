@@ -8,7 +8,18 @@ const getApiKey = (keyName: string) => {
   return envKey ? envKey.trim() : null;
 }
 
-// 🌤️ 天氣狀況翻譯
+// 📅 新增：算出準確的日期字串 (YYYY-MM-DD)
+// 這樣我們就能明確告訴 AI「明天」具體是哪一天，避免時區或認知落差
+const getDateString = (targetDay: TargetDay): string => {
+  const date = new Date();
+  if (targetDay === 'tomorrow') {
+    date.setDate(date.getDate() + 1);
+  }
+  // 轉成 ISO 格式並只取前面的日期部分 (2025-11-26)
+  return date.toISOString().split('T')[0];
+};
+
+// ... (translateCondition 保持不變)
 const translateCondition = (cond: string): string => {
   if (!cond) return '多雲';
   const c = cond.toLowerCase().trim();
@@ -25,17 +36,13 @@ const translateCondition = (cond: string): string => {
   return cond; 
 };
 
-// 📸 Pexels 圖片搜尋 (改為接收 AI 產生的精準關鍵字)
+// ... (fetchPexelsImages 保持不變，記得要用 V17 那版可以接受 searchQuery 的)
 const fetchPexelsImages = async (searchQuery: string): Promise<any[]> => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
-  
-  // 如果沒有關鍵字或 Key，回傳空陣列
   if (!PEXELS_API_KEY || !searchQuery) return [];
   
   try {
-    // 加上 full body 與 street style 確保是穿搭全身照
     const finalQuery = `${searchQuery} full body street style`;
-    
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(finalQuery)}&per_page=3&orientation=portrait`;
     const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
     
@@ -54,8 +61,8 @@ const fetchPexelsImages = async (searchQuery: string): Promise<any[]> => {
   }
 };
 
-// 🌡️ 天氣資料抓取
-const fetchRealWeather = async (location: string, displayLocation: string) => {
+// 🌡️ fetchRealWeather (維持 V18 的修正，抓取正確的 Index)
+const fetchRealWeather = async (location: string, displayLocation: string, targetDay: TargetDay) => {
   try {
     const isKnownLocation = ['汐止', '泰山', '雙北', '新北'].some(l => displayLocation.includes(l));
     const searchLocation = isKnownLocation 
@@ -65,17 +72,23 @@ const fetchRealWeather = async (location: string, displayLocation: string) => {
     const response = await fetch(`https://wttr.in/${encodeURIComponent(searchLocation)}?format=j1`);
     if (!response.ok) throw new Error('Weather API Error');
     const data = await response.json();
-    const today = data.weather[0];
-    const current = data.current_condition[0];
     
+    // V18 的核心修正：明天抓 index 1，今天抓 index 0
+    const targetDateIndex = targetDay === 'tomorrow' ? 1 : 0;
+    const weatherData = data.weather[targetDateIndex]; 
+    
+    // 使用預報的平均溫
+    const displayTemp = weatherData.avgtempC;
+
     return {
-      temp_C: parseInt(current.temp_C),
-      FeelsLikeC: parseInt(current.FeelsLikeC),
-      humidity: parseInt(current.humidity),
-      maxtempC: parseInt(today.maxtempC),
-      mintempC: parseInt(today.mintempC),
-      chanceofrain: parseInt(today.hourly[0].chanceofrain),
-      condition: translateCondition(current.weatherDesc[0].value)
+      temp_C: parseInt(displayTemp), 
+      FeelsLikeC: parseInt(displayTemp) + 2, 
+      humidity: parseInt(weatherData.hourly[4].humidity), 
+      maxtempC: parseInt(weatherData.maxtempC),
+      mintempC: parseInt(weatherData.mintempC),
+      chanceofrain: parseInt(weatherData.hourly[4].chanceofrain), 
+      condition: translateCondition(weatherData.hourly[4].weatherDesc[0].value),
+      date: weatherData.date // 多回傳一個日期給 AI 參考
     };
   } catch (e) { 
     console.error("天氣 API 錯誤:", e);
@@ -108,7 +121,6 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
   targetDay: "today"
 };
 
-// 🤖 主函式
 export const getGeminiSuggestion = async (
   location: string, 
   displayLocation: string, 
@@ -121,19 +133,23 @@ export const getGeminiSuggestion = async (
   const GOOGLE_API_KEY = getApiKey('VITE_GOOGLE_API_KEY');
   if (!GOOGLE_API_KEY) return { ...FALLBACK_DATA, weather: { ...FALLBACK_DATA.weather, location: displayLocation } };
 
-  const realWeather = await fetchRealWeather(location, displayLocation);
+  const realWeather = await fetchRealWeather(location, displayLocation, targetDay);
   
-  const timeDescription = `${targetDay === 'tomorrow' ? '明天' : '今天'}${timeOfDay === 'morning' ? '早上' : timeOfDay === 'afternoon' ? '下午' : '晚上'}`;
+  // 🔥 V19 關鍵：算出絕對日期
+  const exactDate = getDateString(targetDay);
+  
+  // 🔥 把日期塞進描述裡，這樣 AI 絕對不會搞錯
+  const timeDescription = `${exactDate} (${targetDay === 'tomorrow' ? '明天' : '今天'}) ${timeOfDay === 'morning' ? '早上' : timeOfDay === 'afternoon' ? '下午' : '晚上'}`;
+  
   const weatherInfo = realWeather 
-    ? `預測時間點「${timeDescription}」的參考天氣為：氣溫 ${realWeather.temp_C}°C (體感 ${realWeather.FeelsLikeC}°C), 天氣狀況 ${realWeather.condition}, 最高溫 ${realWeather.maxtempC}°C, 最低溫 ${realWeather.mintempC}°C` 
+    ? `預測日期 ${realWeather.date} 的天氣為：日均溫 ${realWeather.temp_C}°C, 天氣狀況 ${realWeather.condition}, 最高溫 ${realWeather.maxtempC}°C, 最低溫 ${realWeather.mintempC}°C, 降雨機率 ${realWeather.chanceofrain}%` 
     : '天氣資訊取得中';
 
-  // 🔥 Prompt 優化：要求 AI 提供搜尋關鍵字
   const prompt = `
     你是一位頂尖時尚造型師。請根據以下條件提供一套完整的穿搭建議。
     - 使用者: ${gender}, 風格 ${style}, 個人色彩: ${colorSeason}
     - 地點: ${displayLocation}
-    - 預測時間: ${timeDescription}
+    - 預測時間: ${timeDescription}  <-- 這裡現在包含了準確日期
     - 詳細天氣資訊: ${weatherInfo}
 
     請嚴格依照此 JSON 格式回傳，不要有任何多餘的文字：
@@ -164,7 +180,6 @@ export const getGeminiSuggestion = async (
     if (!text) throw new Error("Empty response");
     const parsedData = JSON.parse(repairJson(text));
 
-    // 回填真實天氣
     if (realWeather) {
         parsedData.weather = { 
           ...parsedData.weather, 
@@ -175,7 +190,6 @@ export const getGeminiSuggestion = async (
     }
     parsedData.targetDay = targetDay;
 
-    // 🔥 使用 AI 產生的關鍵字去搜尋圖片
     const aiSearchQuery = parsedData.outfit?.visualPrompts?.[0] || `${style} ${gender} outfit`;
     const images = await fetchPexelsImages(aiSearchQuery);
     parsedData.generatedImages = images.slice(0, 3);
