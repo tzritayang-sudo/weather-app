@@ -8,7 +8,6 @@ const getApiKey = (keyName: string) => {
   return envKey ? envKey.trim() : null;
 }
 
-// 1. 日期計算 (保持精準)
 const getDateString = (targetDay: TargetDay): string => {
   const date = new Date();
   if (targetDay === 'tomorrow') {
@@ -17,26 +16,23 @@ const getDateString = (targetDay: TargetDay): string => {
   return date.toISOString().split('T')[0];
 };
 
-// 2. 智慧建議引擎 (保持 V22 的數據判斷，這是準確度的核心)
+// 智慧建議引擎 (數據判斷)
 const generateSmartAdvice = (temp: number, rainChance: number, humidity: number): string => {
   let advice = "";
 
-  // 溫度策略
-  if (temp >= 30) advice += "極度炎熱，務必推薦透氣短袖。";
-  else if (temp >= 26) advice += "悶熱，建議短袖或薄長袖。";
-  else if (temp >= 20) advice += "舒適，薄長袖或短袖配薄外套。";
-  else if (temp >= 16) advice += "轉涼，建議長袖、針織衫加防風外套。";
-  else if (temp >= 12) advice += "寒冷，建議毛衣、發熱衣、厚外套。";
-  else advice += "寒流等級，務必推薦羽絨衣、圍巾保暖。";
+  if (temp >= 30) advice += "極熱，推薦涼感透氣材質，以亮色系增加清爽感。";
+  else if (temp >= 26) advice += "悶熱，建議短袖或薄長袖，材質要吸汗。";
+  else if (temp >= 20) advice += "舒適，薄長袖或短袖配薄外套，可運用多層次穿搭。";
+  else if (temp >= 16) advice += "轉涼，建議長袖、針織衫加防風外套，注意保暖。";
+  else if (temp >= 12) advice += "寒冷，一定要穿厚外套或羽絨衣，可利用圍巾增加造型重點。";
+  else advice += "寒流等級，務必保暖，建議洋蔥式穿搭。";
 
-  // 降雨策略
-  if (rainChance >= 60) advice += " 高機率下雨，強烈建議雨具、防水鞋、深色褲子。";
-  else if (rainChance >= 30) advice += " 可能有雨，建議帶傘。";
+  if (rainChance >= 60) advice += " 降雨機率高，推薦時尚雨靴或防水鞋，避免淺色長褲。";
+  else if (rainChance >= 30) advice += " 可能下雨，建議隨身攜帶折疊傘。";
   
   return advice;
 };
 
-// 3. 天氣翻譯 (保持不變)
 const translateCondition = (cond: string): string => {
   if (!cond) return '多雲';
   const c = cond.toLowerCase().trim();
@@ -51,14 +47,12 @@ const translateCondition = (cond: string): string => {
   return cond; 
 };
 
-// 4. Pexels 搜尋 (優化關鍵字，確保圖片精準)
 const fetchPexelsImages = async (searchQuery: string): Promise<any[]> => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
   if (!PEXELS_API_KEY || !searchQuery) return [];
   
   try {
-    // 加上 "outfit" 確保是穿搭照
-    const finalQuery = `${searchQuery} outfit full body fashion -landscape -building`;
+    const finalQuery = `${searchQuery} outfit fashion clothing full body -landscape -building`;
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(finalQuery)}&per_page=3&orientation=portrait`;
     const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
     
@@ -117,17 +111,17 @@ const repairJson = (jsonString: string) => {
 const FALLBACK_DATA: WeatherOutfitResponse = {
   weather: { location: "Taipei", temperature: 22, feels_like: 20, maxtempC: 24, mintempC: 20, humidity: "75%", precipitation: "30%", condition: "多雲" },
   outfit: {
-    summary: "舒適休閒風：薄針織 + 牛仔褲", 
-    reason: "明天氣溫舒適但早晚偏涼，薄針織衫透氣又保暖，搭配牛仔褲俐落有型。",
-    tips: "帶件薄外套以備不時之需，怕冷可加圍巾。",
+    summary: "俐落保暖公式：發熱衣 + 針織衫 + 風衣", 
+    reason: "面對濕冷天氣，實用與時尚兼具的關鍵在於『外防風、內保暖』。深藍色風衣不僅防風防雨，更能修飾身形，內搭亮色系發熱衣，在保暖的同時點亮整體造型，展現個人色彩的魅力。",
+    tips: "雨天建議搭配深色靴子，既防水又帥氣。可戴上簡約的銀飾耳環，增加精緻感。",
     color_palette: ["米白", "海軍藍", "淺灰"],
     items: [
-      { name: "薄針織上衣", color: "米白", material: "針織", type: "top" },
+      { name: "高領發熱衣", color: "米白", material: "機能布", type: "top" },
       { name: "直筒牛仔褲", color: "藍色", material: "丹寧", type: "pants" },
-      { name: "休閒小白鞋", color: "白色", material: "帆布", type: "shoes" },
-      { name: "帆布包", color: "米色", material: "帆布", type: "bag" }
+      { name: "防水短靴", color: "黑色", material: "皮革", type: "shoes" },
+      { name: "風衣外套", color: "深藍", material: "尼龍", type: "jacket" }
     ],
-    visualPrompts: ["woman wearing white knit sweater and blue jeans street style"]
+    visualPrompts: ["woman wearing navy trench coat and blue jeans street style"]
   },
   generatedImages: [],
   targetDay: "today"
@@ -163,31 +157,31 @@ export const getGeminiSuggestion = async (
     : '天氣資訊取得中';
 
   const prompt = `
-    你是一位專業時尚顧問。使用者想知道明天怎麼穿最剛好。
-    
+    你是一位頂尖的個人造型顧問，擅長結合「實用機能」與「時尚美感」。使用者希望在應對天氣的同時，依然能展現個人風格。
+
     現況資料：
     - 使用者: ${gender}, 風格 ${style}, 個人色彩: ${colorSeason}
     - 地點: ${displayLocation}
     - 時間: ${timeDescription}
     - 天氣數據: ${weatherInfo}
-    - 關鍵天氣策略: ${dynamicAdvice}
+    - 關鍵策略: ${dynamicAdvice}
 
-    請依照此 JSON 格式回傳 (請提供具體且實用的建議)：
+    請依照此 JSON 格式回傳 (語氣要專業、具體且有美感)：
     {
       "weather": { "location": "${displayLocation}", "temperature": 20, "feels_like": 18, "maxtempC": 22, "mintempC": 17, "humidity": "80%", "precipitation": "20%" },
       "outfit": {
-        "summary": "一句話風格總結 (例如：簡約保暖風格)", 
-        "reason": "請解釋『為什麼這樣穿最舒服』，包含對溫度、降雨的應對 (例如：這樣穿早上出門不冷，中午也不會太悶，且鞋子防潑水不怕小雨)",
-        "tips": "請列出『必備配件』或『注意事項』 (例如：務必攜帶折疊傘、建議洋蔥式穿搭)",
+        "summary": "具體且有型的穿搭公式 (例如：長版風衣 + 亮色內搭)", 
+        "reason": "請解釋如何『兼顧天氣與時尚』。例如：汐止濕冷，推薦防風外套來禦寒，但內搭可以選擇符合個人色彩(${colorSeason})的亮色單品，讓整體造型不沉悶，既保暖又有層次感。",
+        "tips": "請提供提升質感的實用建議 (例如：雨天穿帥氣的切爾西雨靴取代球鞋，既防水又能拉長腿部線條。)",
         "color_palette": ["顏色1", "顏色2", "顏色3"],
         "items": [
           {"name": "具體單品名 (如：高領發熱衣)", "color": "顏色", "material": "材質", "type": "top"},
-          {"name": "具體單品名 (如：九分直筒褲)", "color": "顏色", "material": "材質", "type": "pants"},
-          {"name": "具體單品名 (如：防水休閒鞋)", "color": "顏色", "material": "材質", "type": "shoes"},
-          {"name": "具體單品名", "color": "顏色", "material": "材質", "type": "bag"},
-          {"name": "外套/配件", "color": "顏色", "material": "材質", "type": "jacket"} 
+          {"name": "具體單品名 (如：修身直筒褲)", "color": "顏色", "material": "材質", "type": "pants"},
+          {"name": "具體單品名 (如：切爾西雨靴)", "color": "顏色", "material": "材質", "type": "shoes"},
+          {"name": "具體單品名 (如：極簡皮革包)", "color": "顏色", "material": "材質", "type": "bag"},
+          {"name": "外套/配件 (如：長版風衣)", "color": "顏色", "material": "材質", "type": "jacket"} 
         ],
-        "visualPrompts": ["給 Pexels 的精確指令，包含具體單品名稱，例如 'woman wearing beige trench coat and black trousers street style'"]
+        "visualPrompts": ["給 Pexels 的精確指令，包含具體單品名稱與風格，例如 'woman wearing navy trench coat and chelsea boots street style'"]
       }
     }
   `;
@@ -201,12 +195,7 @@ export const getGeminiSuggestion = async (
     const parsedData = JSON.parse(repairJson(text));
 
     if (realWeather) {
-        parsedData.weather = { 
-            ...parsedData.weather, 
-            ...realWeather, 
-            humidity: `${realWeather.humidity}%`, 
-            precipitation: `${realWeather.chanceofrain}%` 
-        };
+        parsedData.weather = { ...parsedData.weather, ...realWeather, humidity: `${realWeather.humidity}%`, precipitation: `${realWeather.chanceofrain}%` };
     }
     parsedData.targetDay = targetDay;
 
@@ -220,17 +209,7 @@ export const getGeminiSuggestion = async (
     console.error('Gemini 錯誤:', e);
     const safeData = { ...FALLBACK_DATA, targetDay };
     if (realWeather) {
-       safeData.weather = { 
-         ...safeData.weather, 
-         location: displayLocation, 
-         temperature: realWeather.temp_C,
-         feels_like: realWeather.FeelsLikeC,
-         maxtempC: realWeather.maxtempC,
-         mintempC: realWeather.mintempC,
-         humidity: `${realWeather.humidity}%`,
-         precipitation: `${realWeather.chanceofrain}%`,
-         condition: realWeather.condition
-       };
+       safeData.weather = { ...safeData.weather, ...realWeather, humidity: `${realWeather.humidity}%`, precipitation: `${realWeather.chanceofrain}%` };
     }
     return safeData;
   }
