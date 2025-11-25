@@ -5,14 +5,7 @@ const MODEL_NAME = "gemini-2.5-flash";
 
 const getApiKey = (keyName: string) => {
   const envKey = import.meta.env[keyName];
-  // 🔥 除錯用：印出 Key 是否存在 (只印前幾碼，保護隱私)
-  if (envKey) {
-    console.log(`✅ [API Check] ${keyName} is loaded. (${envKey.substring(0, 5)}...)`);
-    return envKey.trim();
-  } else {
-    console.error(`❌ [API Check] ${keyName} is MISSING! Make sure it's in your .env file.`);
-    return null;
-  }
+  return envKey ? envKey.trim() : null;
 }
 
 const getDateString = (targetDay: TargetDay): string => {
@@ -53,33 +46,17 @@ const translateCondition = (cond: string): string => {
 
 const fetchPexelsImages = async (searchQuery: string): Promise<any[]> => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
-  
-  if (!PEXELS_API_KEY) {
-    console.error("❌ Pexels API Key is missing, skipping image search.");
-    return [];
-  }
-  
-  if (!searchQuery) {
-    console.warn("⚠️ Search query is empty, skipping image search.");
-    return [];
-  }
+  if (!PEXELS_API_KEY || !searchQuery) return [];
   
   try {
-    // 極簡化關鍵字策略
+    // 極簡化，但這次 query 裡會包含顏色
     const finalQuery = `${searchQuery} outfit`;
-    console.log(`🔍 [Pexels Search] Query: "${finalQuery}"`); // 印出搜尋什麼
-    
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(finalQuery)}&per_page=3&orientation=portrait`;
     const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
     
-    if (!response.ok) {
-      console.error(`❌ [Pexels Error] Status: ${response.status}`);
-      return [];
-    }
+    if (!response.ok) return [];
     
     const data = await response.json();
-    console.log(`✅ [Pexels Success] Found ${data.photos.length} photos.`);
-    
     return data.photos.map((p: any) => ({ 
         id: p.id, 
         url: p.url, 
@@ -87,7 +64,7 @@ const fetchPexelsImages = async (searchQuery: string): Promise<any[]> => {
         alt: p.alt || searchQuery 
     }));
   } catch (error) { 
-    console.error("❌ [Pexels Exception]", error);
+    console.error("Pexels API Error:", error);
     return []; 
   }
 };
@@ -133,8 +110,14 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
   weather: { location: "Taipei", temperature: 22, feels_like: 20, maxtempC: 24, mintempC: 20, humidity: "75%", precipitation: "30%", condition: "多雲" },
   outfit: {
     summary: "防風保暖公式：防水風衣 + 亮色發熱衣", 
-    reason: "汐止濕冷，建議外層穿深藍防水風衣擋雨抗風。\n\n內搭寶藍色發熱衣保暖。進室內脫外套後，亮色內搭依然有型。",
-    tips: "🌧️ 【天氣重點】汐止濕冷，建議外層穿深藍防水風衣擋雨抗風。\n\n🧥 【穿搭實戰】內搭寶藍色發熱衣保暖，進室內脫外套後，亮色內搭依然有型。\n\n🚇 【通勤細節】雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。別忘了帶折疊傘！",
+    reason: "汐止濕冷，建議外層穿深藍防水風衣擋雨抗風。
+
+內搭寶藍色發熱衣保暖。進室內脫外套後，亮色內搭依然有型。",
+    tips: "🌧️ 【天氣重點】汐止濕冷，降雨機率高，外層防風防水是關鍵。
+
+🧥 【穿搭實戰】內搭寶藍色發熱衣保暖，進室內脫外套後，亮色內搭依然有型。
+
+🚇 【通勤細節】雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。務必攜帶折疊傘！",
     color_palette: ["米白", "海軍藍", "淺灰"],
     items: [
       { name: "高領發熱衣", color: "寶藍", material: "機能布", type: "top" },
@@ -143,7 +126,8 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
       { name: "尼龍後背包", color: "黑色", material: "尼龍", type: "bag" },
       { name: "防水風衣", color: "深藍", material: "尼龍", type: "jacket" }
     ],
-    visualPrompts: ["navy trench coat woman street style"]
+    // 🔥 Fallback 也要符合 Bright Winter
+    visualPrompts: ["woman wearing navy trench coat and blue jeans street style"]
   },
   generatedImages: [],
   targetDay: "today"
@@ -159,12 +143,7 @@ export const getGeminiSuggestion = async (
   targetDay: TargetDay
 ): Promise<WeatherOutfitResponse> => {
   const GOOGLE_API_KEY = getApiKey('VITE_GOOGLE_API_KEY');
-  
-  // 如果沒 Key，這裡就會報錯並回傳 Fallback
-  if (!GOOGLE_API_KEY) {
-     console.error("❌ Google API Key is missing!");
-     return { ...FALLBACK_DATA, weather: { ...FALLBACK_DATA.weather, location: displayLocation } };
-  }
+  if (!GOOGLE_API_KEY) return { ...FALLBACK_DATA, weather: { ...FALLBACK_DATA.weather, location: displayLocation } };
 
   const realWeather = await fetchRealWeather(location, displayLocation, targetDay);
   const exactDate = getDateString(targetDay);
@@ -193,13 +172,19 @@ export const getGeminiSuggestion = async (
     - 天氣數據: ${weatherInfo}
     - 關鍵策略: ${dynamicAdvice}
 
-    請依照此 JSON 格式回傳 (請務必在 tips 欄位中使用 '\\n\\n' 來換行，讓排版清晰)：
+    請依照此 JSON 格式回傳 (請務必在 tips 欄位中使用 '\
+\
+' 來換行)：
     {
       "weather": { "location": "${displayLocation}", "temperature": 20, "feels_like": 18, "maxtempC": 22, "mintempC": 17, "humidity": "80%", "precipitation": "20%" },
       "outfit": {
         "summary": "【穿搭公式】(例如：防水風衣 + 亮色發熱衣 + 雨靴)", 
         "reason": "簡短帶過即可",
-        "tips": "🌧️ 【天氣重點】汐止濕冷，降雨機率高，外層防風防水是關鍵。\\n\\n🧥 【穿搭實戰】內搭發熱衣保暖，進室內脫外套後，亮色內搭依然有型。內搭選用${colorSeason}色系點亮造型。\\n\\n🚇 【通勤細節】雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。務必攜帶折疊傘。",
+        "tips": "🌧️ 【天氣重點】汐止濕冷，降雨機率高...\
+\
+🧥 【穿搭實戰】內搭選用${colorSeason}色系點亮造型...\
+\
+🚇 【通勤細節】雨天建議穿深色褲防髒...",
         "color_palette": ["顏色1", "顏色2", "顏色3"],
         "items": [
           {"name": "具體單品 (如：高領發熱衣)", "color": "顏色", "material": "材質", "type": "top"},
@@ -208,7 +193,8 @@ export const getGeminiSuggestion = async (
           {"name": "具體單品 (如：尼龍後背包)", "color": "顏色", "material": "材質", "type": "bag"},
           {"name": "外套/配件 (如：長版風衣)", "color": "顏色", "material": "材質", "type": "jacket"} 
         ],
-        "visualPrompts": ["請給我一組英文關鍵字，只包含『性別』、『主要外套/上衣』、『風格』即可，不要太長。例如：'woman trench coat street style'"]
+        // 🔥 V33 修正：強制在搜尋關鍵字中加入具體顏色
+        "visualPrompts": ["請給我一組英文關鍵字，格式為：'性別 + 具體顏色 + 主要單品 + 風格'。例如：'woman navy trench coat street style' 或 'woman bright blue sweater street style'。請務必選用符合 ${colorSeason} 的顏色。"]
       }
     }
   `;
@@ -235,7 +221,7 @@ export const getGeminiSuggestion = async (
   } catch (e) { 
     console.error('Gemini 錯誤:', e);
     const safeData = { ...FALLBACK_DATA, targetDay };
-    // ... Fallback 處理
+    // ...
     return safeData;
   }
 };
