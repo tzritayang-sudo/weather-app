@@ -5,7 +5,14 @@ const MODEL_NAME = "gemini-2.5-flash";
 
 const getApiKey = (keyName: string) => {
   const envKey = import.meta.env[keyName];
-  return envKey ? envKey.trim() : null;
+  // 🔥 除錯用：印出 Key 是否存在 (只印前幾碼，保護隱私)
+  if (envKey) {
+    console.log(`✅ [API Check] ${keyName} is loaded. (${envKey.substring(0, 5)}...)`);
+    return envKey.trim();
+  } else {
+    console.error(`❌ [API Check] ${keyName} is MISSING! Make sure it's in your .env file.`);
+    return null;
+  }
 }
 
 const getDateString = (targetDay: TargetDay): string => {
@@ -16,7 +23,6 @@ const getDateString = (targetDay: TargetDay): string => {
   return date.toISOString().split('T')[0];
 };
 
-// 智慧建議引擎
 const generateSmartAdvice = (temp: number, rainChance: number, humidity: number): string => {
   let advice = "";
   if (temp >= 30) advice += "極熱，推薦涼感透氣材質。";
@@ -28,7 +34,6 @@ const generateSmartAdvice = (temp: number, rainChance: number, humidity: number)
 
   if (rainChance >= 60) advice += " 高機率下雨，推薦防水鞋或雨靴。";
   else if (rainChance >= 30) advice += " 可能下雨，建議隨身攜帶折疊傘。";
-  
   return advice;
 };
 
@@ -46,21 +51,35 @@ const translateCondition = (cond: string): string => {
   return cond; 
 };
 
-// 🔥 V31 修正：搜尋邏輯極簡化
 const fetchPexelsImages = async (searchQuery: string): Promise<any[]> => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
-  if (!PEXELS_API_KEY || !searchQuery) return [];
+  
+  if (!PEXELS_API_KEY) {
+    console.error("❌ Pexels API Key is missing, skipping image search.");
+    return [];
+  }
+  
+  if (!searchQuery) {
+    console.warn("⚠️ Search query is empty, skipping image search.");
+    return [];
+  }
   
   try {
-    // 不再加一堆雜亂的關鍵字，只保留最核心的 "outfit"
-    // 讓 AI 的簡短關鍵字直接發揮作用
+    // 極簡化關鍵字策略
     const finalQuery = `${searchQuery} outfit`;
+    console.log(`🔍 [Pexels Search] Query: "${finalQuery}"`); // 印出搜尋什麼
+    
     const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(finalQuery)}&per_page=3&orientation=portrait`;
     const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
     
-    if (!response.ok) return [];
+    if (!response.ok) {
+      console.error(`❌ [Pexels Error] Status: ${response.status}`);
+      return [];
+    }
     
     const data = await response.json();
+    console.log(`✅ [Pexels Success] Found ${data.photos.length} photos.`);
+    
     return data.photos.map((p: any) => ({ 
         id: p.id, 
         url: p.url, 
@@ -68,7 +87,7 @@ const fetchPexelsImages = async (searchQuery: string): Promise<any[]> => {
         alt: p.alt || searchQuery 
     }));
   } catch (error) { 
-    console.error("Pexels API Error:", error);
+    console.error("❌ [Pexels Exception]", error);
     return []; 
   }
 };
@@ -140,7 +159,12 @@ export const getGeminiSuggestion = async (
   targetDay: TargetDay
 ): Promise<WeatherOutfitResponse> => {
   const GOOGLE_API_KEY = getApiKey('VITE_GOOGLE_API_KEY');
-  if (!GOOGLE_API_KEY) return { ...FALLBACK_DATA, weather: { ...FALLBACK_DATA.weather, location: displayLocation } };
+  
+  // 如果沒 Key，這裡就會報錯並回傳 Fallback
+  if (!GOOGLE_API_KEY) {
+     console.error("❌ Google API Key is missing!");
+     return { ...FALLBACK_DATA, weather: { ...FALLBACK_DATA.weather, location: displayLocation } };
+  }
 
   const realWeather = await fetchRealWeather(location, displayLocation, targetDay);
   const exactDate = getDateString(targetDay);
@@ -184,7 +208,6 @@ export const getGeminiSuggestion = async (
           {"name": "具體單品 (如：尼龍後背包)", "color": "顏色", "material": "材質", "type": "bag"},
           {"name": "外套/配件 (如：長版風衣)", "color": "顏色", "material": "材質", "type": "jacket"} 
         ],
-        // 🔥 V31 重點：要求 AI 給出「極簡關鍵字」，提高搜尋成功率
         "visualPrompts": ["請給我一組英文關鍵字，只包含『性別』、『主要外套/上衣』、『風格』即可，不要太長。例如：'woman trench coat street style'"]
       }
     }
@@ -212,9 +235,7 @@ export const getGeminiSuggestion = async (
   } catch (e) { 
     console.error('Gemini 錯誤:', e);
     const safeData = { ...FALLBACK_DATA, targetDay };
-    if (realWeather) {
-       safeData.weather = { ...safeData.weather, ...realWeather, humidity: `${realWeather.humidity}%`, precipitation: `${realWeather.chanceofrain}%` };
-    }
+    // ... Fallback 處理
     return safeData;
   }
 };
