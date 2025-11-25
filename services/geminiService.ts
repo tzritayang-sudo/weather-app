@@ -25,41 +25,18 @@ const translateCondition = (cond: string): string => {
   return cond; 
 };
 
-// 🎨 簡化配色關鍵字
-const getColorKeywords = (colorSeason: ColorSeason): string => {
-  const s = colorSeason.toLowerCase();
-  
-  if (s.includes('winter')) return 'cool winter fashion';
-  if (s.includes('spring')) return 'warm spring outfit';
-  if (s.includes('summer')) return 'soft summer style';
-  if (s.includes('autumn')) return 'earthy autumn look';
-  
-  return 'minimalist style'; 
-};
-
-// 📸 Pexels 圖片搜尋
-const fetchPexelsImages = async (
-  gender: Gender, 
-  style: Style, 
-  colorSeason: ColorSeason
-): Promise<any[]> => {
+// 📸 Pexels 圖片搜尋 (改為接收 AI 產生的精準關鍵字)
+const fetchPexelsImages = async (searchQuery: string): Promise<any[]> => {
   const PEXELS_API_KEY = getApiKey('VITE_PEXELS_API_KEY');
-  if (!PEXELS_API_KEY) return [];
+  
+  // 如果沒有關鍵字或 Key，回傳空陣列
+  if (!PEXELS_API_KEY || !searchQuery) return [];
   
   try {
-    const styleMap = {
-      'Casual': 'casual street',
-      'Formal': 'elegant business',
-      'Sport': 'sporty fitness'
-    };
+    // 加上 full body 與 street style 確保是穿搭全身照
+    const finalQuery = `${searchQuery} full body street style`;
     
-    const genderTerm = gender === 'Female' ? 'woman' : 'man';
-    const styleTerm = styleMap[style];
-    const colorTerm = getColorKeywords(colorSeason);
-    
-    const searchQuery = `${genderTerm} ${styleTerm} ${colorTerm} portrait`;
-    
-    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=3&orientation=portrait`;
+    const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(finalQuery)}&per_page=3&orientation=portrait`;
     const response = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
     
     if (!response.ok) return [];
@@ -71,13 +48,16 @@ const fetchPexelsImages = async (
         src: { medium: p.src.medium, large: p.src.large }, 
         alt: p.alt || searchQuery 
     }));
-  } catch (error) { return []; }
+  } catch (error) { 
+    console.error("Pexels API Error:", error);
+    return []; 
+  }
 };
 
-// 🌡️ 天氣資料抓取 (精準化)
+// 🌡️ 天氣資料抓取
 const fetchRealWeather = async (location: string, displayLocation: string) => {
   try {
-    const isKnownLocation = ['汐止', '泰山', '雙北'].some(l => displayLocation.includes(l));
+    const isKnownLocation = ['汐止', '泰山', '雙北', '新北'].some(l => displayLocation.includes(l));
     const searchLocation = isKnownLocation 
       ? `${location},New+Taipei+City,Taiwan`
       : `${location},Taiwan`;
@@ -113,7 +93,7 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
   weather: { location: "Taipei", temperature: 25, feels_like: 27, maxtempC: 28, mintempC: 22, humidity: "70%", precipitation: "20%", condition: "多雲" },
   outfit: {
     summary: "預設建議",
-    reason: "系統暫時忙碌,建議穿著舒適透氣。",
+    reason: "系統暫時忙碌，建議穿著舒適透氣。",
     tips: "請稍後再試。",
     color_palette: ["白色", "黑色", "藍色"],
     items: [
@@ -128,7 +108,7 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
   targetDay: "today"
 };
 
-// 🤖 主函式:取得 AI 穿搭建議
+// 🤖 主函式
 export const getGeminiSuggestion = async (
   location: string, 
   displayLocation: string, 
@@ -145,9 +125,10 @@ export const getGeminiSuggestion = async (
   
   const timeDescription = `${targetDay === 'tomorrow' ? '明天' : '今天'}${timeOfDay === 'morning' ? '早上' : timeOfDay === 'afternoon' ? '下午' : '晚上'}`;
   const weatherInfo = realWeather 
-    ? `預測時間點「${timeDescription}」的參考天氣為:氣溫 ${realWeather.temp_C}°C (體感 ${realWeather.FeelsLikeC}°C), 天氣狀況 ${realWeather.condition}, 最高溫 ${realWeather.maxtempC}°C, 最低溫 ${realWeather.mintempC}°C` 
+    ? `預測時間點「${timeDescription}」的參考天氣為：氣溫 ${realWeather.temp_C}°C (體感 ${realWeather.FeelsLikeC}°C), 天氣狀況 ${realWeather.condition}, 最高溫 ${realWeather.maxtempC}°C, 最低溫 ${realWeather.mintempC}°C` 
     : '天氣資訊取得中';
 
+  // 🔥 Prompt 優化：要求 AI 提供搜尋關鍵字
   const prompt = `
     你是一位頂尖時尚造型師。請根據以下條件提供一套完整的穿搭建議。
     - 使用者: ${gender}, 風格 ${style}, 個人色彩: ${colorSeason}
@@ -155,7 +136,7 @@ export const getGeminiSuggestion = async (
     - 預測時間: ${timeDescription}
     - 詳細天氣資訊: ${weatherInfo}
 
-    請嚴格依照此 JSON 格式回傳,不要有任何多餘的文字:
+    請嚴格依照此 JSON 格式回傳，不要有任何多餘的文字：
     {
       "weather": { "location": "${displayLocation}", "temperature": 25, "feels_like": 28, "maxtempC": 30, "mintempC": 24, "humidity": "75%", "precipitation": "10%" },
       "outfit": {
@@ -169,10 +150,10 @@ export const getGeminiSuggestion = async (
           {"name": "單品名", "color": "顏色", "material": "材質", "type": "shoes"},
           {"name": "單品名", "color": "顏色", "material": "材質", "type": "bag"}
         ],
-        "visualPrompts": ["${style} ${gender} fashion street style"]
+        "visualPrompts": ["給 Pexels 使用的英文搜尋關鍵字，描述這套穿搭的視覺樣子，例如 'woman wearing white knit sweater and blue jeans street style'"]
       }
     }
-    ⚠️ items 必須包含 'top' 和 'pants'。
+    ⚠️ items 必須包含 'top' 和 'pants'。visualPrompts 請給我英文的描述。
   `;
 
   try {
@@ -183,6 +164,7 @@ export const getGeminiSuggestion = async (
     if (!text) throw new Error("Empty response");
     const parsedData = JSON.parse(repairJson(text));
 
+    // 回填真實天氣
     if (realWeather) {
         parsedData.weather = { 
           ...parsedData.weather, 
@@ -193,7 +175,9 @@ export const getGeminiSuggestion = async (
     }
     parsedData.targetDay = targetDay;
 
-    const images = await fetchPexelsImages(gender, style, colorSeason);
+    // 🔥 使用 AI 產生的關鍵字去搜尋圖片
+    const aiSearchQuery = parsedData.outfit?.visualPrompts?.[0] || `${style} ${gender} outfit`;
+    const images = await fetchPexelsImages(aiSearchQuery);
     parsedData.generatedImages = images.slice(0, 3);
     
     return parsedData;
