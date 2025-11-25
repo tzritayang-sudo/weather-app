@@ -16,17 +16,17 @@ const getDateString = (targetDay: TargetDay): string => {
   return date.toISOString().split('T')[0];
 };
 
-// 智慧建議引擎 (數據判斷，保留V22的核心邏輯)
+// 智慧建議引擎
 const generateSmartAdvice = (temp: number, rainChance: number, humidity: number): string => {
   let advice = "";
-  if (temp >= 30) advice += "極熱，推薦涼感透氣材質，以亮色系增加清爽感。";
-  else if (temp >= 26) advice += "悶熱，建議短袖或薄長袖，材質要吸汗。";
-  else if (temp >= 20) advice += "舒適，薄長袖或短袖配薄外套，多層次穿搭。";
-  else if (temp >= 16) advice += "轉涼，建議長袖、針織衫加防風外套，注意保暖。";
-  else if (temp >= 12) advice += "寒冷，一定要穿厚外套或羽絨衣，圍巾增加造型。";
-  else advice += "寒流等級，務必保暖，建議洋蔥式穿搭。";
+  if (temp >= 30) advice += "極熱，推薦涼感透氣材質。";
+  else if (temp >= 26) advice += "悶熱，建議短袖或薄長袖。";
+  else if (temp >= 20) advice += "舒適，薄長袖或短袖配薄外套。";
+  else if (temp >= 16) advice += "轉涼，建議長袖、針織衫加防風外套。";
+  else if (temp >= 12) advice += "寒冷，一定要穿厚外套或羽絨衣。";
+  else advice += "寒流等級，務必保暖。";
 
-  if (rainChance >= 60) advice += " 降雨機率高，推薦時尚雨靴或防水鞋，避開淺色長褲。";
+  if (rainChance >= 60) advice += " 高機率下雨，推薦防水鞋或雨靴。";
   else if (rainChance >= 30) advice += " 可能下雨，建議隨身攜帶折疊傘。";
   
   return advice;
@@ -111,8 +111,9 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
   weather: { location: "Taipei", temperature: 22, feels_like: 20, maxtempC: 24, mintempC: 20, humidity: "75%", precipitation: "30%", condition: "多雲" },
   outfit: {
     summary: "防風保暖公式：防水風衣 + 亮色發熱衣", 
-    reason: "汐止濕冷有雨，外層首選『深藍防水風衣』擋雨抗風。內搭選擇『寶藍色發熱衣』，進室內脫下外套後，依然亮眼有型，符合您的個人色彩。",
-    tips: "通勤車上冷氣強，風衣可當小毯子。建議穿『黑色切爾西雨靴』，防水又修飾腿型。別忘了帶折疊傘！",
+    // 🔥 這裡直接把重點全部合併，確保一定看得到
+    reason: "汐止濕冷，建議外層穿深藍防水風衣擋雨抗風，內搭寶藍色發熱衣保暖。進室內脫外套後，亮色內搭依然有型，符合您的個人色彩。",
+    tips: "汐止濕冷，建議外層穿深藍防水風衣擋雨抗風，內搭寶藍色發熱衣保暖。通勤車上冷氣強，外套可隨身。雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。別忘了帶折疊傘！",
     color_palette: ["米白", "海軍藍", "淺灰"],
     items: [
       { name: "高領發熱衣", color: "寶藍", material: "機能布", type: "top" },
@@ -156,7 +157,6 @@ export const getGeminiSuggestion = async (
     ? `預測日期 ${realWeather.date} 的天氣為：日均溫 ${realWeather.temp_C}°C, 濕度 ${realWeather.humidity}%, 降雨機率 ${realWeather.chanceofrain}%` 
     : '天氣資訊取得中';
 
-  // 🔍 Prompt 調整：嚴格控制字數與格式，避免太長
   const prompt = `
     你是一位專業的個人造型顧問。請為使用者提供一份「實用與時尚兼具」的穿搭建議。
 
@@ -167,13 +167,13 @@ export const getGeminiSuggestion = async (
     - 天氣數據: ${weatherInfo}
     - 關鍵策略: ${dynamicAdvice}
 
-    請依照此 JSON 格式回傳 (請將長篇大論拆解到以下三個欄位，保持精簡)：
+    請依照此 JSON 格式回傳 (請注意 tips 欄位會直接顯示在畫面上，請把所有重點都濃縮在這裡)：
     {
       "weather": { "location": "${displayLocation}", "temperature": 20, "feels_like": 18, "maxtempC": 22, "mintempC": 17, "humidity": "80%", "precipitation": "20%" },
       "outfit": {
-        "summary": "【公式】最核心的穿搭重點 (例如：防水風衣 + 亮色發熱衣 + 雨靴)", 
-        "reason": "【天氣與實用】(限50字內) 解釋為什麼這樣穿能應對天氣。例如：汐止濕冷，外層防風防水是關鍵，內搭發熱衣保暖，進室內脫外套也不悶熱。",
-        "tips": "【時尚與細節】(限50字內) 提供配色或配件建議。例如：內搭選用${colorSeason}色系點亮造型。通勤冷氣強，外套可隨身。建議穿深色褲防髒。",
+        "summary": "【穿搭公式】(例如：防水風衣 + 亮色發熱衣 + 雨靴)", 
+        "reason": "不用填太長，重點放在 tips",
+        "tips": "【天氣重點】汐止濕冷，降雨機率${realWeather ? realWeather.chanceofrain : 60}%，外層防水防風是關鍵。【穿搭實戰】建議內搭發熱衣保暖，進室內脫外套也不悶熱。內搭選用${colorSeason}色系點亮造型。【通勤細節】雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。務必攜帶折疊傘。",
         "color_palette": ["顏色1", "顏色2", "顏色3"],
         "items": [
           {"name": "具體單品 (如：高領發熱衣)", "color": "顏色", "material": "材質", "type": "top"},
