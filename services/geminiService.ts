@@ -110,14 +110,8 @@ const FALLBACK_DATA: WeatherOutfitResponse = {
   weather: { location: "Taipei", temperature: 22, feels_like: 20, maxtempC: 24, mintempC: 20, humidity: "75%", precipitation: "30%", condition: "多雲" },
   outfit: {
     summary: "防風保暖公式：防水風衣 + 亮色發熱衣", 
-    reason: "汐止濕冷，建議外層穿深藍防水風衣擋雨抗風。
-
-內搭寶藍色發熱衣保暖。進室內脫外套後，亮色內搭依然有型。",
-    tips: "🌧️ 【天氣重點】汐止濕冷，降雨機率高，外層防風防水是關鍵。
-
-🧥 【穿搭實戰】內搭寶藍色發熱衣保暖，進室內脫外套後，亮色內搭依然有型。
-
-🚇 【通勤細節】雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。務必攜帶折疊傘！",
+    reason: "汐止濕冷，建議外層穿深藍防水風衣擋雨抗風。\n\n內搭寶藍色發熱衣保暖。進室內脫外套後，亮色內搭依然有型。",
+    tips: "🌧️ 【天氣重點】汐止濕冷，降雨機率高，外層防風防水是關鍵。\n\n🧥 【穿搭實戰】內搭寶藍色發熱衣保暖，進室內脫外套後，亮色內搭依然有型。\n\n🚇 【通勤細節】雨天建議穿深色褲防髒，搭配切爾西雨靴更時尚。務必攜帶折疊傘！",
     color_palette: ["米白", "海軍藍", "淺灰"],
     items: [
       { name: "高領發熱衣", color: "寶藍", material: "機能布", type: "top" },
@@ -172,19 +166,13 @@ export const getGeminiSuggestion = async (
     - 天氣數據: ${weatherInfo}
     - 關鍵策略: ${dynamicAdvice}
 
-    請依照此 JSON 格式回傳 (請務必在 tips 欄位中使用 '\
-\
-' 來換行)：
+    請依照此 JSON 格式回傳 (請務必在 tips 欄位中使用 '\\n\\n' 來換行)：
     {
       "weather": { "location": "${displayLocation}", "temperature": 20, "feels_like": 18, "maxtempC": 22, "mintempC": 17, "humidity": "80%", "precipitation": "20%" },
       "outfit": {
         "summary": "【穿搭公式】(例如：防水風衣 + 亮色發熱衣 + 雨靴)", 
         "reason": "簡短帶過即可",
-        "tips": "🌧️ 【天氣重點】汐止濕冷，降雨機率高...\
-\
-🧥 【穿搭實戰】內搭選用${colorSeason}色系點亮造型...\
-\
-🚇 【通勤細節】雨天建議穿深色褲防髒...",
+        "tips": "🌧️ 【天氣重點】汐止濕冷，降雨機率高...\\n\\n🧥 【穿搭實戰】內搭選用${colorSeason}色系點亮造型...\\n\\n🚇 【通勤細節】雨天建議穿深色褲防髒...",
         "color_palette": ["顏色1", "顏色2", "顏色3"],
         "items": [
           {"name": "具體單品 (如：高領發熱衣)", "color": "顏色", "material": "材質", "type": "top"},
